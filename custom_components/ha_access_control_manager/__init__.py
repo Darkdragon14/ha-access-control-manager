@@ -4,7 +4,6 @@ import aiofiles
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.components import websocket_api
 from homeassistant.components.panel_custom import async_register_panel
 from homeassistant.helpers import config_validation as cv
 
@@ -35,14 +34,20 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     """Set up  ha_access_control_manager from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
+    tab_icon = config_entry.options.get("tab_icon", config_entry.data.get("tab_icon", "mdi:shield-account"))
+    tab_name = config_entry.options.get("tab_name", config_entry.data.get("tab_name", "Access Control Manager"))
+    path = config_entry.options.get("path", config_entry.data.get("path_to_admin_ui", "/ha-access-control-manager"))
+    if path.startswith("/"):
+        path = path[1:]
+
     hass.async_create_task(
         async_register_panel(
             hass,
-            frontend_url_path="ha_access_control_manager",
-            webcomponent_name="ha-access-control-manager",
-            module_url="/local/community/ha_access_control_manager/ha-access-control-manager.js",
-            sidebar_title="Access Control Manager",
-            sidebar_icon="mdi:shield-account",
+            frontend_url_path=path,
+            webcomponent_name="access-control-manager",
+            module_url="/local/community/ha-access-control-manager/ha-access-control-manager.js",
+            sidebar_title=tab_name,
+            sidebar_icon=tab_icon,
             require_admin=True,
         )
     )
@@ -52,7 +57,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Unload a config entry."""
+    path = config_entry.options.get("path", config_entry.data.get("path", "/ha-access-control-manager"))
+    if path.startswith("/"):
+        path = path[1:]
 
+
+    path = "ha_access_control_manager"
+    
     path = "ha_access_control_manager"
     panels = hass.data.get("frontend_panels", {})
     if path in panels:
