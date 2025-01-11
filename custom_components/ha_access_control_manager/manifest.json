@@ -1,0 +1,12 @@
+{
+    "domain": "ha_access_control_manager",
+    "name": "HA Access Control Manager",
+    "codeowners": ["@Darkdragon14"],
+    "config_flow": true,
+    "dependencies": ["http", "websocket_api", "config"],
+    "documentation": "https://github.com/Darkdragon14/ha-access-control-manager",
+    "iot_class": "local_push",
+    "issue_tracker": "https://github.com/Darkdragon14/ha-access-control-manager/issues",
+    "requirements": [],
+    "version": "0.0.1"
+}
