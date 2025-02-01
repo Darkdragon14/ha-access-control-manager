@@ -4,15 +4,28 @@ import aiofiles
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.components import websocket_api
 from homeassistant.components.panel_custom import async_register_panel
 from homeassistant.helpers import config_validation as cv
 
-from .const import DOMAIN, DEST_PATH_SCRIPT_JS, SOURCE_PATH_SCRIPT_JS, SCRIPT_JS
+from .get_entities import list_entities
+from .get_users import list_users
+from .get_auths import list_auths
+from .set_auths import set_auths
+from .bash_script import is_script_running, start_script
+
+from .const import DOMAIN, DEST_PATH_SCRIPT_JS, SOURCE_PATH_SCRIPT_JS, SCRIPT_JS, SCRIPT_BASH
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the ha_access_control_manager component."""
+
+    websocket_api.async_register_command(hass, list_users)
+    websocket_api.async_register_command(hass, list_entities)
+    websocket_api.async_register_command(hass, list_auths)
+    websocket_api.async_register_command(hass, set_auths)
+    
     source_path = hass.config.path(SOURCE_PATH_SCRIPT_JS)
     dest_dir = hass.config.path(DEST_PATH_SCRIPT_JS)
     dest_path = os.path.join(dest_dir, SCRIPT_JS)
@@ -51,6 +64,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             require_admin=True,
         )
     )
+
+    if not is_script_running(SCRIPT_BASH):
+        start_script(SCRIPT_BASH)
 
     return True
 
