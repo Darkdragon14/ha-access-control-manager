@@ -2,8 +2,7 @@ import {
     LitElement,
     html,
     css,
-  } from "https://unpkg.com/lit-element@2.4.0/lit-element.js?module";
-  
+} from "https://unpkg.com/lit-element@2.4.0/lit-element.js?module";
 
 class AccessControlManager extends LitElement {
     static get properties() {
@@ -12,30 +11,231 @@ class AccessControlManager extends LitElement {
             narrow: { type: Boolean },
             route: { type: Object },
             panel: { type: Object },
+            users: { type: Array },
+            tableHeaders: { type: Array },
+            tableData: { type: Array },
+            dataUsers: { type: Array },
+            dataGroups: { type: Array },
+            isAnUser: { type: Boolean },
+            selected: { type: Object },
         };
     }
 
     constructor() {
         super();
+        this.users = [];
+        this.tableHeaders = ["entity_id", "name", "read", "write"];
+        this.tableData = [];
+        this.dataUsers = [];
+        this.dataGroups = [];
+        this.isAnUser = false;
+        this.selected = {};
+    }
+
+    update(changedProperties) {
+        if (changedProperties.has('hass') && this.hass) {
+            this.fetchUsers();
+            this.fetchEntities();
+            this.fetchAuths();
+        }
+        super.update(changedProperties);
+    }
+
+    fetchUsers() {
+        this.hass.callWS({ type: 'ha_access_control/list_users' }).then(users => {
+            console.log(users);
+            this.users = users;
+        });
+    }
+
+    fetchEntities() {
+        this.hass.callWS({ type: 'ha_access_control/list_entities' }).then(entities => {
+            console.log(entities);
+            entities.forEach(entity => {
+                this.tableData.push({
+                    entity_id: entity.entity_id,
+                    name: entity.attributes.friendly_name,
+                    read: false,
+                    write: false
+                });
+            });
+            // this.requestUpdate();
+        });
+    }
+
+    fetchAuths() {
+        this.hass.callWS({ type: 'ha_access_control/list_auths' }).then(data => {
+            this.loadAuths(data);
+        });
+    }
+
+    loadAuths(data) {
+        console.log(data);
+        this.dataGroups = data.groups;
+
+        const users = data.users;
+
+        users.forEach(user => {
+            if (!user.policy?.entities) {
+                user.policy = {
+                    entities: {
+                        entity_ids: {}
+                    }
+                }
+            }
+
+            user.group_ids.forEach(groupId => {
+                console.log(groupId, data.groups);
+                const group = data.groups.find(group => group.id === groupId);
+                if (group.policy?.entities?.entity_ids) {
+                    const keys = Object.keys(group.policy.entities.entity_ids);
+                    keys.forEach(entityId => {
+                        user.policy.entities.entity_ids[entityId] = group.policy.entities.entity_ids[entityId];
+                    });
+                }
+            });
+        });
+
+        
+        this.dataUsers = users;
+    }
+
+    changeUser(e) {
+        const userId = e.detail.value;
+        const user = this.dataUsers.find(user => user.id === userId);
+        this.selected = user;
+        this.isAnUser = true;
+        this.loadData(user);
+    }
+
+    changeGroup(e) {
+        const groupId = e.detail.value;
+        const group = this.dataGroups.find(group => group.id === groupId);
+        this.selected = group;
+        this.isAnUser = false;
+        this.loadData(group);
+    }
+
+    loadData(data) {
+        let allTrue = false;
+        if (!data?.policy?.entities?.entity_ids || Object.keys(data.policy.entities.entity_ids).length === 0) {
+            allTrue = true;
+        }
+
+        this.tableData.forEach(entity => {
+            if (allTrue) {
+                entity.read = true;
+                entity.write = true;
+                return;
+            }
+
+            entity.read = data.policy.entities.entity_ids[entity.entity_id] ? true : false;
+            entity.write = data.policy.entities.entity_ids[entity.entity_id] && typeof data.policy.entities.entity_ids[entity.entity_id] !== 'object' ? true : false;
+        });
+        console.log(this.tableData);
+        
+        this.tableData = [...this.tableData];
+        this.requestUpdate();
+    }
+
+    save() {
+        console.log('DATA', this.tableData);
+        console.log('SELECTED', this.selected);
+        this.tableData.forEach(entity => {
+            if (entity.read && entity.write) {
+                this.selected.policy.entities.entity_ids[entity.entity_id] = true;
+            } else if (entity.read) {
+                this.selected.policy.entities.entity_ids[entity.entity_id] = {
+                    read: true
+                };
+            } else {
+                delete this.selected.policy.entities.entity_ids[entity.entity_id];
+            }
+        });
+        console.log('SELECTED WITH POLICY', this.selected);
+        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: this.selected }).then(data => {
+            this.loadAuths(data);
+        })
+    }
+
+    updateCheckbox(index, field, value) {
+        this.tableData[index][field] = !value;
+        this.requestUpdate();
+    }
+
+    formatHeader(str) {
+        return `${str.charAt(0).toUpperCase()}${str.slice(1).replaceAll("_", " ")}`;
     }
 
     render() {
-        console.log("AccessControlManager.render()");
-        console.log(this.panel);
         return html`
         <div>
-          <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
-            <div class="mdc-top-app-bar__row">
-              <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start" id="navigation">
-                <span class="mdc-top-app-bar__title">
-                  ${this.panel.title}
-                </span>
-              </section>
-              <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" id="actions" role="toolbar">
-                <slot name="actionItems"></slot>
-              </section>
+            <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
+                <div class="mdc-top-app-bar__row">
+                    <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start" id="navigation">
+                        <span class="mdc-top-app-bar__title">
+                            ${this.panel.title}
+                        </span>
+                    </section>
+                    <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" id="actions" role="toolbar">
+                        <slot name="actionItems"></slot>
+                    </section>
+                </div>
+            </header>
+            <div class="mdc-top-app-bar--fixed-adjust flex content">
+
+                <div class="filters">
+                    <ha-combo-box
+                    .items=${this.users}
+                    .itemLabelPath=${'username'}
+                    .itemValuePath=${'id'}
+                    .label=${'User'}
+                    @value-changed=${this.changeUser}
+                    >
+                    </ha-combo-box>
+                    <ha-combo-box
+                    .items=${this.dataGroups}
+                    .itemLabelPath=${'name'}
+                    .itemValuePath=${'id'}
+                    .label=${'Group'}
+                    @value-changed=${this.changeGroup}
+                    >
+                    </ha-combo-box>
+
+                    <mwc-button 
+                    raised 
+                    label="${'Save'}" 
+                    @click=${this.save}
+                    ></mwc-button>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                        ${this.tableHeaders.map(
+                            (header) => html`<th>${this.formatHeader(header)}</th>`
+                        )}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${this.tableData.map(
+                        (item, index) => html`
+                            <tr>
+                                <td>${item[this.tableHeaders[0]]}</td>
+                                <td>${item[this.tableHeaders[1]]}</td>
+                                <td @click=${(e) => this.updateCheckbox(index, 'read', item[this.tableHeaders[2]])}>
+                                    ${item[this.tableHeaders[2]] ? 'Yes' : 'No'}
+                                </td>
+                                <td @click=${(e) => this.updateCheckbox(index, 'write', item[this.tableHeaders[3]])}>
+                                    ${item[this.tableHeaders[3]] ? 'Yes' : 'No'}
+                                </td>
+                            </tr>
+                        `
+                        )}
+                    </tbody>
+                </table>
             </div>
-          </header>
+        </div>
         `
     }
 
@@ -110,6 +310,35 @@ class AccessControlManager extends LitElement {
             }
             app-toolbar [main-title] {
                 margin-left: 20px
+            }
+
+            .filters {
+                align-items: center;
+                display: flex;
+                flex-wrap: wrap;
+                padding: 8px 16px 0px;
+            }
+            .filters > * {
+                margin-right: 8px;
+            }
+            ha-combo-box {
+                padding: 8px 0;
+                width: auto;
+            }
+            table {
+                width: 90%;
+                margin-left: 5%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }
+            th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            th {
+                font-weight: bold;
+                border-bottom: 3px solid #ddd;
             }
         `;
     }
