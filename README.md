@@ -32,8 +32,6 @@ To install Guest Mode using [HACS](https://hacs.xyz/):
 
 * Adding translations for multilingual support :rocket:
 
-* Create new groups and assign users to them for easier role management :rocket:
-
 *  Upgrade the UI to fully comply with Home Assistant design standards :rocket:
 
 * View by devices or rooms to organize permissions more effectively :rocket:
