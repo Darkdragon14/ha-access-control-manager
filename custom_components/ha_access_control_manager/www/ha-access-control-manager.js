@@ -18,6 +18,7 @@ class AccessControlManager extends LitElement {
             dataGroups: { type: Array },
             isAnUser: { type: Boolean },
             selected: { type: Object },
+            newGroupName: { type: String }
         };
     }
 
@@ -30,6 +31,7 @@ class AccessControlManager extends LitElement {
         this.dataGroups = [];
         this.isAnUser = false;
         this.selected = {};
+        this.newGroupName = '';
     }
 
     update(changedProperties) {
@@ -70,7 +72,6 @@ class AccessControlManager extends LitElement {
     }
 
     loadAuths(data) {
-        console.log(data);
         this.dataGroups = data.groups;
 
         const users = data.users;
@@ -84,6 +85,9 @@ class AccessControlManager extends LitElement {
                 }
             }
 
+            // Add group policies to user, but maybe for for later
+            // I need to find a way to differentiate between user and group policies when saving an user
+            /*
             user.group_ids.forEach(groupId => {
                 console.log(groupId, data.groups);
                 const group = data.groups.find(group => group.id === groupId);
@@ -93,7 +97,7 @@ class AccessControlManager extends LitElement {
                         user.policy.entities.entity_ids[entityId] = group.policy.entities.entity_ids[entityId];
                     });
                 }
-            });
+            });*/
         });
 
         
@@ -138,9 +142,33 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    handleCheckboxChange(groupId, checked) {
+        if (checked) {
+            this.selected.group_ids.push(groupId);
+        } else {
+            this.selected.group_ids = this.selected.group_ids.filter(id => id !== groupId);
+        }  
+        
+    }
+
+    handleNewGroupSave() {
+        const name = this.newGroupName.trim();
+        if (name) {
+            const id = `custom-group-${name.toLowerCase().replaceAll(' ', '-')}`;
+            const newGroup = { id, name };
+            this.dataGroups = [...this.dataGroups, newGroup];
+            this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: false, data: newGroup }).then(data => {
+                this.loadAuths(data);
+            })
+            this.newGroupName = '';
+        }
+    }
+    
+    handleNewGroupInput(e) {
+        this.newGroupName = e.target.value;
+    }
+
     save() {
-        console.log('DATA', this.tableData);
-        console.log('SELECTED', this.selected);
         this.tableData.forEach(entity => {
             if (entity.read && entity.write) {
                 this.selected.policy.entities.entity_ids[entity.entity_id] = true;
@@ -152,7 +180,6 @@ class AccessControlManager extends LitElement {
                 delete this.selected.policy.entities.entity_ids[entity.entity_id];
             }
         });
-        console.log('SELECTED WITH POLICY', this.selected);
         this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: this.selected }).then(data => {
             this.loadAuths(data);
         })
@@ -208,6 +235,35 @@ class AccessControlManager extends LitElement {
                     @click=${this.save}
                     ></mwc-button>
                 </div>
+                ${this.isAnUser ? html`
+                    <div>
+                        <h2>Groups</h2>
+                        <ul>
+                            ${this.dataGroups.map(group => {
+                                const isChecked = this.selected.group_ids.includes(group.id);
+                                return html`
+                                <li id="${group.id}">
+                                    <input
+                                        type="checkbox"
+                                        ?checked="${isChecked}"
+                                        @change="${(e) => this.handleCheckboxChange(group.id, e.target.checked)}"
+                                    />
+                                    ${group.name}
+                                </li>`
+                            })}
+                            <li id="create-group-li">
+                                <input
+                                    class="group-input"
+                                    type="text"
+                                    placeholder="Enter new group name"
+                                    .value="${this.newGroupName}"
+                                    @input="${this.handleNewGroupInput}"
+                                />
+                                <button @click="${this.handleNewGroupSave}">Create Group</button>
+                            </li>
+                        </ul>
+                    </div>`
+                : null}
 
                 <table>
                     <thead>
@@ -339,6 +395,22 @@ class AccessControlManager extends LitElement {
             th {
                 font-weight: bold;
                 border-bottom: 3px solid #ddd;
+            }
+            ul {
+                list-style-type: none;
+                padding-left: 0;
+            }
+            li {
+                display: flex;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            input[type="checkbox"] {
+                margin-right: 10px;
+            }
+            .group-input {
+                margin-left: 10px;
+                margin-right: 10px;
             }
         `;
     }
