@@ -85,6 +85,9 @@ class AccessControlManager extends LitElement {
                 }
             }
 
+            // Add group policies to user, but maybe for for later
+            // I need to find a way to differentiate between user and group policies when saving an user
+            /*
             user.group_ids.forEach(groupId => {
                 console.log(groupId, data.groups);
                 const group = data.groups.find(group => group.id === groupId);
@@ -94,7 +97,7 @@ class AccessControlManager extends LitElement {
                         user.policy.entities.entity_ids[entityId] = group.policy.entities.entity_ids[entityId];
                     });
                 }
-            });
+            });*/
         });
 
         
@@ -140,7 +143,12 @@ class AccessControlManager extends LitElement {
     }
 
     handleCheckboxChange(groupId, checked) {
-        console.log(`Group ID: ${groupId}, Checked: ${checked}`);
+        if (checked) {
+            this.selected.group_ids.push(groupId);
+        } else {
+            this.selected.group_ids = this.selected.group_ids.filter(id => id !== groupId);
+        }  
+        
     }
 
     handleNewGroupSave() {
