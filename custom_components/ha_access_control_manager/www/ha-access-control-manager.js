@@ -18,20 +18,22 @@ class AccessControlManager extends LitElement {
             dataGroups: { type: Array },
             isAnUser: { type: Boolean },
             selected: { type: Object },
-            newGroupName: { type: String }
+            newGroupName: { type: String },
+            openCreateGroup: { type: Boolean }
         };
     }
 
     constructor() {
         super();
         this.users = [];
-        this.tableHeaders = ["entity_id", "name", "read", "write"];
+        this.tableHeaders = ["name", "entity_id", "read", "write"];
         this.tableData = [];
         this.dataUsers = [];
         this.dataGroups = [];
         this.isAnUser = false;
         this.selected = {};
         this.newGroupName = '';
+        this.openCreateGroup = false;
     }
 
     update(changedProperties) {
@@ -152,6 +154,11 @@ class AccessControlManager extends LitElement {
     }
 
     handleNewGroupSave() {
+        const inputField = this.shadowRoot.querySelector('.group-input');
+        if (!inputField.reportValidity()) {
+            return; 
+        }
+
         const name = this.newGroupName.trim();
         if (name) {
             const id = `custom-group-${name.toLowerCase().replaceAll(' ', '-')}`;
@@ -211,85 +218,133 @@ class AccessControlManager extends LitElement {
             </header>
             <div class="mdc-top-app-bar--fixed-adjust flex content">
 
-                <div class="filters">
-                    <ha-combo-box
-                    .items=${this.users}
-                    .itemLabelPath=${'username'}
-                    .itemValuePath=${'id'}
-                    .label=${'User'}
-                    @value-changed=${this.changeUser}
-                    >
-                    </ha-combo-box>
-                    <ha-combo-box
-                    .items=${this.dataGroups}
-                    .itemLabelPath=${'name'}
-                    .itemValuePath=${'id'}
-                    .label=${'Group'}
-                    @value-changed=${this.changeGroup}
-                    >
-                    </ha-combo-box>
+                <ha-card>
+                    <div class="card-content">
+                        <div class="filters">
+                            <ha-combo-box
+                            .items=${this.users}
+                            .itemLabelPath=${'username'}
+                            .itemValuePath=${'id'}
+                            .label=${'User'}
+                            @value-changed=${this.changeUser}
+                            >
+                            </ha-combo-box>
+                            <ha-combo-box
+                            .items=${this.dataGroups}
+                            .itemLabelPath=${'name'}
+                            .itemValuePath=${'id'}
+                            .label=${'Group'}
+                            @value-changed=${this.changeGroup}
+                            >
+                            </ha-combo-box>
 
-                    <mwc-button 
-                    raised 
-                    label="${'Save'}" 
-                    @click=${this.save}
-                    ></mwc-button>
-                </div>
+                            <mwc-button 
+                            raised 
+                            label="${'Save'}" 
+                            @click=${this.save}
+                            ></mwc-button>
+                        </div>
+                    </div>
+                </ha-card>
                 ${this.isAnUser ? html`
-                    <div>
-                        <h2>Groups</h2>
-                        <ul>
+                    <ha-card class="group-card" header="Groups">
+                        <div class="group-list">
                             ${this.dataGroups.map(group => {
                                 const isChecked = this.selected.group_ids.includes(group.id);
                                 return html`
-                                <li id="${group.id}">
-                                    <input
-                                        type="checkbox"
-                                        ?checked="${isChecked}"
-                                        @change="${(e) => this.handleCheckboxChange(group.id, e.target.checked)}"
-                                    />
-                                    ${group.name}
-                                </li>`
+                                <div class="group-item">
+                                    <div class="group-info">
+                                        <input
+                                            type="checkbox"
+                                            ?checked="${isChecked}"
+                                            @change="${(e) => this.handleCheckboxChange(group.id, e.target.checked)}"
+                                        />
+                                        <span class="group-name">${group.name}</span>
+                                    </div>
+                                </div>`
                             })}
-                            <li id="create-group-li">
-                                <input
-                                    class="group-input"
-                                    type="text"
-                                    placeholder="Enter new group name"
-                                    .value="${this.newGroupName}"
-                                    @input="${this.handleNewGroupInput}"
-                                />
-                                <button @click="${this.handleNewGroupSave}">Create Group</button>
-                            </li>
-                        </ul>
-                    </div>`
+                            <div class="new-group-input">
+                                <mwc-button 
+                                    raised 
+                                    label="${'Create a new Group'}" 
+                                    @click=${(e) => this.openCreateGroup = true}
+                                ></mwc-button>
+                                <ha-dialog 
+                                    .open=${this.openCreateGroup}
+                                    heading="Create a new Group"
+                                >
+                                    <div>
+                                        <ha-textfield 
+                                            class="group-input"
+                                            label="Group Name" 
+                                            required
+                                            validationMessage="Please enter a group name"
+                                            .value="${this.newGroupName}" 
+                                            @input="${this.handleNewGroupInput}"
+                                        ></ha-textfield>
+                                    </div>
+                                    <mwc-button
+                                        dialogAction="save"
+                                        slot="primaryAction"
+                                        @click="${this.handleNewGroupSave}"
+                                    >
+                                        Save
+                                    </mwc-button>
+                                    <mwc-button
+                                        dialogAction="cancel"
+                                        slot="secondaryAction"
+                                        @click="${(e) => this.openCreateGroup = false}"
+                                    >
+                                        cancel
+                                    </mwc-button>
+                                </ha-dialog>
+                            </div>
+                        </div>
+                    </ha-card>`
                 : null}
 
-                <table>
-                    <thead>
-                        <tr>
-                        ${this.tableHeaders.map(
-                            (header) => html`<th>${this.formatHeader(header)}</th>`
-                        )}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${this.tableData.map(
-                        (item, index) => html`
-                            <tr>
-                                <td>${item[this.tableHeaders[0]]}</td>
-                                <td>${item[this.tableHeaders[1]]}</td>
-                                <td @click=${(e) => this.updateCheckbox(index, 'read', item[this.tableHeaders[2]])}>
-                                    ${item[this.tableHeaders[2]] ? 'Yes' : 'No'}
-                                </td>
-                                <td @click=${(e) => this.updateCheckbox(index, 'write', item[this.tableHeaders[3]])}>
-                                    ${item[this.tableHeaders[3]] ? 'Yes' : 'No'}
-                                </td>
-                            </tr>
-                        `
-                        )}
-                    </tbody>
-                </table>
+                <ha-card class="entites-cards" header="Entities">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                ${this.tableHeaders.map(
+                                    (header) => html`<th>${this.formatHeader(header)}</th>`
+                                )}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${this.tableData.map(
+                                (item, index) => html`
+                                    <tr>
+                                        <td>${item[this.tableHeaders[0]]}</td>
+                                        <td>${item[this.tableHeaders[1]]}</td>
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                ?checked="${item.read}"
+                                                @change="${() => this.updateCheckbox(index, 'Read', item.write)}"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                ?checked="${item.write}"
+                                                @change="${() => this.updateCheckbox(index, 'write', item.write)}"
+                                            />
+                                        </td>
+                                    </tr>
+                                `
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="card-footer">
+                        <mwc-button raised label="Save Changes" @click="${this.save}">
+                        </mwc-button>
+                    </div>
+                </ha-card>
             </div>
         </div>
         `
@@ -301,8 +356,8 @@ class AccessControlManager extends LitElement {
             }
             .mdc-top-app-bar {
                 --mdc-typography-headline6-font-weight: 400;
-                color: var(--app-header-text-color,var(--mdc-theme-on-primary,#fff));
-                background-color: var(--app-header-background-color,var(--mdc-theme-primary));
+                background-color: var(--app-header-background-color, var(--primary-color));
+                color: var(--app-header-text-color, var(--text-primary-color));
                 width: var(--mdc-top-app-bar-width,100%);
                 display: flex;
                 position: fixed;
@@ -381,36 +436,104 @@ class AccessControlManager extends LitElement {
                 padding: 8px 0;
                 width: auto;
             }
-            table {
-                width: 90%;
-                margin-left: 5%;
-                border-collapse: collapse;
-                margin-top: 20px;
-            }
-            th, td {
-                border: 1px solid #ddd;
-                padding: 8px;
-                text-align: left;
-            }
-            th {
-                font-weight: bold;
-                border-bottom: 3px solid #ddd;
-            }
-            ul {
-                list-style-type: none;
-                padding-left: 0;
-            }
-            li {
-                display: flex;
-                align-items: center;
-                margin-bottom: 8px;
-            }
             input[type="checkbox"] {
                 margin-right: 10px;
             }
             .group-input {
                 margin-left: 10px;
                 margin-right: 10px;
+            }
+
+
+            .group-card,
+            .entites-cards {
+                margin: 10px;
+            }
+            
+            .group-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                padding: 16px;
+            }
+
+            .group-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px;
+                border: 1px solid var(--divider-color);
+                border-radius: 8px;
+                background-color: var(--secondary-background-color);
+            }
+
+            .group-info {
+                display: flex;
+                align-items: center;
+            }
+
+            .group-name {
+                margin-left: 10px;
+                font-size: 16px;
+                font-weight: 500;
+                color: var(--primary-text-color);
+            }
+
+            .group-actions {
+                display: flex;
+                gap: 8px;
+            }
+
+            .new-group-input {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                margin-top: 12px;
+            }
+
+            .table-wrapper {
+                overflow-x: auto;
+                padding: 16px;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                background-color: var(--secondary-background-color);
+                border-radius: var(--ha-card-border-radius,12px);
+            }
+
+            th {
+                text-align: left;
+                padding: 12px;
+                font-size: 14px;
+                font-weight: bold;
+                border-bottom: 2px solid var(--divider-color);
+                color: var(--primary-text-color);
+            }
+
+            td {
+                padding: 10px;
+                font-size: 14px;
+                color: var(--primary-text-color);
+                border-bottom: 1px solid var(--divider-color);
+            }
+
+            tr:hover {
+                background-color: var(--table-row-hover-color, rgba(0, 0, 0, 0.05));
+            }
+
+            .card-footer {
+                display: flex;
+                justify-content: flex-end;
+                padding: 16px;
+                border-bottom-left-radius: var(--ha-card-border-radius,12px);
+                border-bottom-right-radius: var(--ha-card-border-radius,12px);
+            }
+
+            mwc-button:hover {
+                transform: scale(1.05);
+                transition: transform 0.2s ease;
             }
         `;
     }

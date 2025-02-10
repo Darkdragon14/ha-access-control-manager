@@ -32,7 +32,7 @@ To install Guest Mode using [HACS](https://hacs.xyz/):
 
 * Adding translations for multilingual support :rocket:
 
-*  Upgrade the UI to fully comply with Home Assistant design standards :rocket:
+* Adding a message to confirm or display an error when we save :rocket:
 
 * View by devices or rooms to organize permissions more effectively :rocket:
 
