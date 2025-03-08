@@ -38,6 +38,10 @@ class AccessControlManager extends LitElement {
         this.expandedDevices = new Set();
     }
 
+    translate(key) {
+        return this.hass.localize(`component.ha_access_control_manager.entity.frontend.${key}.name`);
+    }    
+
     update(changedProperties) {
         if (changedProperties.has('hass') && this.hass) {
             this.fetchUsers();
@@ -222,10 +226,6 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
-    formatHeader(str) {
-        return `${str.charAt(0).toUpperCase()}${str.slice(1).replaceAll("_", " ")}`;
-    }
-
     toggleEntities(deviceId) {
         if (this.expandedDevices.has(deviceId)) {
             this.expandedDevices.delete(deviceId);
@@ -259,7 +259,7 @@ class AccessControlManager extends LitElement {
                             .items=${this.users}
                             .itemLabelPath=${'username'}
                             .itemValuePath=${'id'}
-                            .label=${'User'}
+                            .label=${this.translate("user")}
                             @value-changed=${this.changeUser}
                             >
                             </ha-combo-box>
@@ -267,14 +267,14 @@ class AccessControlManager extends LitElement {
                             .items=${this.dataGroups}
                             .itemLabelPath=${'name'}
                             .itemValuePath=${'id'}
-                            .label=${'Group'}
+                            .label=${this.translate("group")}
                             @value-changed=${this.changeGroup}
                             >
                             </ha-combo-box>
 
                             <mwc-button 
                             raised 
-                            label="${'Save'}" 
+                            label="${this.translate("save")}" 
                             @click=${this.save}
                             ></mwc-button>
                         </div>
@@ -300,19 +300,19 @@ class AccessControlManager extends LitElement {
                             <div class="new-group-input">
                                 <mwc-button 
                                     raised 
-                                    label="${'Create a new Group'}" 
+                                    label="${this.translate("create_new_group")}" 
                                     @click=${(e) => this.openCreateGroup = true}
                                 ></mwc-button>
                                 <ha-dialog 
                                     .open=${this.openCreateGroup}
-                                    heading="Create a new Group"
+                                    heading="${this.translate("create_new_group")}" 
                                 >
                                     <div>
                                         <ha-textfield 
                                             class="group-input"
-                                            label="Group Name" 
+                                            label="${this.translate("group_name")}" 
                                             required
-                                            validationMessage="Please enter a group name"
+                                            validationMessage="${this.translate("enter_group_name")}"
                                             .value="${this.newGroupName}" 
                                             @input="${this.handleNewGroupInput}"
                                         ></ha-textfield>
@@ -322,14 +322,14 @@ class AccessControlManager extends LitElement {
                                         slot="primaryAction"
                                         @click="${this.handleNewGroupSave}"
                                     >
-                                        Save
+                                        ${this.translate("save")}
                                     </mwc-button>
                                     <mwc-button
                                         dialogAction="cancel"
                                         slot="secondaryAction"
                                         @click="${(e) => this.openCreateGroup = false}"
                                     >
-                                        cancel
+                                        ${this.translate("cancel")}
                                     </mwc-button>
                                 </ha-dialog>
                             </div>
@@ -337,14 +337,14 @@ class AccessControlManager extends LitElement {
                     </ha-card>`
                 : null}
 
-                <ha-card class="entites-cards" header="Device permissions for ${this.selected?.name || '(please select an user or a group)'}">
+                <ha-card class="entites-cards" header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
                     <div class="table-wrapper">
                         <table>
                             <thead>
                                 <tr>
                                 <th></th>
                                 ${this.tableHeaders.map(
-                                    (header) => html`<th>${this.formatHeader(header)}</th>`
+                                    (header) => html`<th>${this.translate(header)}</th>`
                                 )}
                                 </tr>
                             </thead>
@@ -384,7 +384,7 @@ class AccessControlManager extends LitElement {
                                                 <thead>
                                                 <tr>
                                                     ${this.tableHeadersEntities.map(
-                                                        (header) => html`<th>${this.formatHeader(header)}</th>`
+                                                        (header) => html`<th>${this.translate(header)}</th>`
                                                     )}
                                                 </tr>
                                                 </thead>
@@ -407,7 +407,7 @@ class AccessControlManager extends LitElement {
                                                         </mwc-checkbox>
                                                     </td>
                                                     </tr>
-                                                `) : html`<tr><td colspan="3">No entities found</td></tr>`}
+                                                `) : html`<tr><td colspan="3">${this.translate("entites_not_found")}</td></tr>`}
                                                 </tbody>
                                             </table>
                                             </td>
@@ -420,7 +420,11 @@ class AccessControlManager extends LitElement {
                     </div>
 
                     <div class="card-footer">
-                        <mwc-button raised label="Save Changes" @click="${this.save}">
+                        <mwc-button 
+                            raised 
+                            label="${this.translate("save")}" 
+                            @click="${this.save}"
+                        >
                         </mwc-button>
                     </div>
                 </ha-card>

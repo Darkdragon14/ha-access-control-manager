@@ -1,0 +1,70 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "tab_icon": "Icono de pestaña",
+                    "tab_name": "Nombre de pestaña",
+                    "path": "Ruta a la interfaz de administración"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "tab_icon": "Icono de pestaña",
+                    "tab_name": "Nombre de pestaña",
+                    "path": "Ruta a la interfaz de administración"
+                }
+            }
+        }
+    },
+    "entity": {
+        "frontend": {
+            "user": {
+                "name": "Usuario"
+            },
+            "group": {
+                "name": "Grupos"
+            },
+            "save": {
+                "name": "Guardar"
+            },
+            "create_new_group": {
+                "name": "Crear un nuevo grupo"
+            },
+            "group_name": {
+                "name": "Nombre del grupo"
+            },
+            "enter_group_name": {
+                "name": "Por favor, ingrese un nombre de grupo"
+            },
+            "cancel": {
+                "name": "Cancelar"
+            },
+            "device_permissions_for": {
+                "name": "Permisos del dispositivo para"
+            },
+            "select_an_user_or_a_group": {
+                "name": "Por favor, seleccione un usuario o un grupo"
+            },
+            "entities_not_found": {
+                "name": "No se encontraron entidades"
+            },
+            "name": {
+                "name": "Nombre"
+            },
+            "entity_id": {
+                "name": "ID de la entidad"
+            },
+            "read": {
+                "name": "Leer"
+            },
+            "write": {
+                "name": "Escribir"
+            }
+        }
+    }
+}

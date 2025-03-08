@@ -8,5 +8,5 @@
     "iot_class": "local_push",
     "issue_tracker": "https://github.com/Darkdragon14/ha-access-control-manager/issues",
     "requirements": [],
-    "version": "1.0.0"
+    "version": "1.0.1"
 }
