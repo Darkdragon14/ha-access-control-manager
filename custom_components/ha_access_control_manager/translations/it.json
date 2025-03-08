@@ -1,0 +1,70 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "tab_icon": "Icona della scheda",
+                    "tab_name": "Nome della scheda",
+                    "path": "Percorso all'interfaccia amministrativa"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "tab_icon": "Icona della scheda",
+                    "tab_name": "Nome della scheda",
+                    "path": "Percorso all'interfaccia amministrativa"
+                }
+            }
+        }
+    },
+    "entity": {
+        "frontend": {
+            "user": {
+                "name": "Utente"
+            },
+            "group": {
+                "name": "Gruppi"
+            },
+            "save": {
+                "name": "Salva"
+            },
+            "create_new_group": {
+                "name": "Crea un nuovo gruppo"
+            },
+            "group_name": {
+                "name": "Nome del gruppo"
+            },
+            "enter_group_name": {
+                "name": "Inserisci un nome per il gruppo"
+            },
+            "cancel": {
+                "name": "Annulla"
+            },
+            "device_permissions_for": {
+                "name": "Permessi del dispositivo per"
+            },
+            "select_an_user_or_a_group": {
+                "name": "Seleziona un utente o un gruppo"
+            },
+            "entities_not_found": {
+                "name": "Nessuna entità trovata"
+            },
+            "name": {
+                "name": "Nome"
+            },
+            "entity_id": {
+                "name": "ID dell'entità"
+            },
+            "read": {
+                "name": "Leggere"
+            },
+            "write": {
+                "name": "Scrivere"
+            }
+        }
+    }
+}

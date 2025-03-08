@@ -1,0 +1,70 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "tab_icon": "Icône de l'onglet",
+                    "tab_name": "Nom de l'onglet",
+                    "path": "Chemin vers l'interface d'administration"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "tab_icon": "Icône de l'onglet",
+                    "tab_name": "Nom de l'onglet",
+                    "path": "Chemin vers l'interface d'administration"
+                }
+            }
+        }
+    },
+    "entity": {
+        "frontend": {
+            "user": {
+                "name": "Utilisateur"
+            },
+            "group": {
+                "name": "Groupes"
+            },
+            "save": {
+                "name": "Sauvegarder"
+            },
+            "create_new_group": {
+                "name": "Créer un nouveau groupe"
+            },
+            "group_name": {
+                "name": "Nom du groupe"
+            },
+            "enter_group_name": {
+                "name": "S'il vous plaît, entrez le nom d'un groupe"
+            },
+            "cancel": {
+                "name": "Annuler"
+            },
+            "device_permissions_for": {
+                "name": "Les droits d'accès pour"
+            },
+            "select_an_user_or_a_group": {
+                "name": "S'il vous plaît, sélectionnez un utilisateur ou un groupe"
+            },
+            "entities_not_found": {
+                "name": "Aucune entité trouvée"
+            },
+            "name": {
+                "name": "Nom"
+            },
+            "entity_id": {
+                "name": "Id de l'Entité"
+            },
+            "read": {
+                "name": "Lire"
+            },
+            "write": {
+                "name": "Écrire"
+            }
+        } 
+    }
+}

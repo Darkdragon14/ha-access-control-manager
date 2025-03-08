@@ -1,0 +1,70 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "tab_icon": "Tab-Symbol",
+                    "tab_name": "Tab-Name",
+                    "path": "Pfad zur Admin-Oberfläche"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "tab_icon": "Tab-Symbol",
+                    "tab_name": "Tab-Name",
+                    "path": "Pfad zur Admin-Oberfläche"
+                }
+            }
+        }
+    },
+    "entity": {
+        "frontend": {
+            "user": {
+                "name": "Benutzer"
+            },
+            "group": {
+                "name": "Gruppen"
+            },
+            "save": {
+                "name": "Speichern"
+            },
+            "create_new_group": {
+                "name": "Neue Gruppe erstellen"
+            },
+            "group_name": {
+                "name": "Gruppenname"
+            },
+            "enter_group_name": {
+                "name": "Bitte geben Sie einen Gruppennamen ein"
+            },
+            "cancel": {
+                "name": "Abbrechen"
+            },
+            "device_permissions_for": {
+                "name": "Geräteberechtigungen für"
+            },
+            "select_an_user_or_a_group": {
+                "name": "Bitte wählen Sie einen Benutzer oder eine Gruppe aus"
+            },
+            "entities_not_found": {
+                "name": "Keine Entitäten gefunden"
+            },
+            "name": {
+                "name": "Name"
+            },
+            "entity_id": {
+                "name": "Entitäts-ID"
+            },
+            "read": {
+                "name": "Lesen"
+            },
+            "write": {
+                "name": "Schreiben"
+            }
+        }
+    }
+}
