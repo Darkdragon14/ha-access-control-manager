@@ -26,7 +26,8 @@ class AccessControlManager extends LitElement {
     constructor() {
         super();
         this.users = [];
-        this.tableHeaders = ["name", "entity_id", "read", "write"];
+        this.tableHeaders = ["name", "read", "write"];
+        this.tableHeadersEntities = ["name", "entity_id", "read", "write"];
         this.tableData = [];
         this.dataUsers = [];
         this.dataGroups = [];
@@ -34,35 +35,35 @@ class AccessControlManager extends LitElement {
         this.selected = {};
         this.newGroupName = '';
         this.openCreateGroup = false;
+        this.expandedDevices = new Set();
     }
 
     update(changedProperties) {
         if (changedProperties.has('hass') && this.hass) {
             this.fetchUsers();
-            this.fetchEntities();
             this.fetchAuths();
+            this.fetchDevices();
         }
         super.update(changedProperties);
     }
 
     fetchUsers() {
         this.hass.callWS({ type: 'ha_access_control/list_users' }).then(users => {
-            console.log(users);
             this.users = users;
         });
     }
 
-    fetchEntities() {
-        this.hass.callWS({ type: 'ha_access_control/list_entities' }).then(entities => {
-            console.log(entities);
-            entities.forEach(entity => {
+    fetchDevices() {
+        this.hass.callWS({ type: 'ha_access_control/list_devices' }).then(devices => {
+            devices.forEach(device => {
                 this.tableData.push({
-                    entity_id: entity.entity_id,
-                    name: entity.attributes.friendly_name,
+                    entities: device.entities,
+                    name: device.name,
+                    id: device.id,
                     read: false,
                     write: false
                 });
-            });
+            })
             // this.requestUpdate();
         });
     }
@@ -128,18 +129,25 @@ class AccessControlManager extends LitElement {
             allTrue = true;
         }
 
-        this.tableData.forEach(entity => {
-            if (allTrue) {
-                entity.read = true;
-                entity.write = true;
-                return;
-            }
+        this.tableData.forEach(device => {
+            device.entities.forEach(entity => {
+                if (allTrue) {
+                    entity.read = true;
+                    entity.write = true;
+                    return;
+                }
 
-            entity.read = data.policy.entities.entity_ids[entity.entity_id] ? true : false;
-            entity.write = data.policy.entities.entity_ids[entity.entity_id] && typeof data.policy.entities.entity_ids[entity.entity_id] !== 'object' ? true : false;
+                entity.read = data.policy.entities.entity_ids[entity.entity_id] ? true : false;
+                entity.write = data.policy.entities.entity_ids[entity.entity_id] && typeof data.policy.entities.entity_ids[entity.entity_id] !== 'object' ? true : false;
+            });
+
+            const entityReads = device.entities.map(entity => entity.read);
+            const entityWrites = device.entities.map(entity => entity.write);
+
+            device.read = entityReads.every(val => val === true) ? true : entityReads.some(val => val === true) ? "indeterminate" : false;
+            device.write = entityWrites.every(val => val === true) ? true : entityWrites.some(val => val === true) ? "indeterminate" : false;
+
         });
-        console.log(this.tableData);
-        
         this.tableData = [...this.tableData];
         this.requestUpdate();
     }
@@ -176,16 +184,18 @@ class AccessControlManager extends LitElement {
     }
 
     save() {
-        this.tableData.forEach(entity => {
-            if (entity.read && entity.write) {
-                this.selected.policy.entities.entity_ids[entity.entity_id] = true;
-            } else if (entity.read) {
-                this.selected.policy.entities.entity_ids[entity.entity_id] = {
-                    read: true
-                };
-            } else {
-                delete this.selected.policy.entities.entity_ids[entity.entity_id];
-            }
+        this.tableData.forEach(device => {
+            device.entities.forEach(entity => {
+                if (entity.read && entity.write) {
+                    this.selected.policy.entities.entity_ids[entity.entity_id] = true;
+                } else if (entity.read) {
+                    this.selected.policy.entities.entity_ids[entity.entity_id] = {
+                        read: true
+                    };
+                } else {
+                    delete this.selected.policy.entities.entity_ids[entity.entity_id];
+                }
+            });
         });
         this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: this.selected }).then(data => {
             this.loadAuths(data);
@@ -194,11 +204,35 @@ class AccessControlManager extends LitElement {
 
     updateCheckbox(index, field, value) {
         this.tableData[index][field] = !value;
+        this.tableData[index].entities.forEach(entity => {
+            entity[field] = this.tableData[index][field];
+        });
+        this.requestUpdate();
+    }
+
+    updateEntityCheckbox(index, secondaryIndex, field, value) {
+        this.tableData[index].entities[secondaryIndex][field] = !value;
+
+        const entityReads = this.tableData[index].entities.map(entity => entity.read);
+        const entityWrites = this.tableData[index].entities.map(entity => entity.write);
+
+        this.tableData[index].read = entityReads.every(val => val === true) ? true : entityReads.some(val => val === true) ? "indeterminate" : false;
+        this.tableData[index].write = entityWrites.every(val => val === true) ? true : entityWrites.some(val => val === true) ? "indeterminate" : false;
+        this.tableData = [...this.tableData];
         this.requestUpdate();
     }
 
     formatHeader(str) {
         return `${str.charAt(0).toUpperCase()}${str.slice(1).replaceAll("_", " ")}`;
+    }
+
+    toggleEntities(deviceId) {
+        if (this.expandedDevices.has(deviceId)) {
+            this.expandedDevices.delete(deviceId);
+        } else {
+            this.expandedDevices.add(deviceId);
+        }
+        this.requestUpdate();
     }
 
     render() {
@@ -303,11 +337,12 @@ class AccessControlManager extends LitElement {
                     </ha-card>`
                 : null}
 
-                <ha-card class="entites-cards" header="Entities">
+                <ha-card class="entites-cards" header="Device permissions for ${this.selected?.name || '(please select an user or a group)'}">
                     <div class="table-wrapper">
                         <table>
                             <thead>
                                 <tr>
+                                <th></th>
                                 ${this.tableHeaders.map(
                                     (header) => html`<th>${this.formatHeader(header)}</th>`
                                 )}
@@ -317,23 +352,67 @@ class AccessControlManager extends LitElement {
                                 ${this.tableData.map(
                                 (item, index) => html`
                                     <tr>
-                                        <td>${item[this.tableHeaders[0]]}</td>
-                                        <td>${item[this.tableHeaders[1]]}</td>
                                         <td>
-                                            <input
-                                                type="checkbox"
-                                                ?checked="${item.read}"
-                                                @change="${() => this.updateCheckbox(index, 'Read', item.write)}"
-                                            />
+                                            <mwc-button 
+                                                raised 
+                                                label="${this.expandedDevices.has(item.id) ? "-" : "+"}" 
+                                                @click=${() => this.toggleEntities(item.id)}
+                                                dense="true"
+                                            ></mwc-button>
+                                        </td>
+                                        <td>${item[this.tableHeaders[0]]}</td>
+                                        <td>
+                                            <mwc-checkbox
+                                                .checked="${item.read}"
+                                                .indeterminate="${item.read === 'indeterminate'}"
+                                                @change="${() => this.updateCheckbox(index, 'read', item.read)}"
+                                            >
                                         </td>
                                         <td>
-                                            <input
-                                                type="checkbox"
-                                                ?checked="${item.write}"
+                                            <mwc-checkbox
+                                                .checked="${item.write}"
+                                                .indeterminate="${item.write === 'indeterminate'}"
                                                 @change="${() => this.updateCheckbox(index, 'write', item.write)}"
-                                            />
+                                            >
+                                            </mwc-checkbox>
                                         </td>
                                     </tr>
+                                    ${this.expandedDevices.has(item.id) ? html`
+                                        <tr>
+                                            <td colspan="4">
+                                            <table>
+                                                <thead>
+                                                <tr>
+                                                    ${this.tableHeadersEntities.map(
+                                                        (header) => html`<th>${this.formatHeader(header)}</th>`
+                                                    )}
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                ${item.entities.length > 0 ? item.entities.map((entity, secondaryIndex) => html`
+                                                    <tr>
+                                                    <td>${entity.name === 'Unknown' ?  entity.original_name : entity.name}</td>
+                                                    <td>${entity[this.tableHeadersEntities[1]]}</td>
+                                                    <td>
+                                                        <mwc-checkbox
+                                                            .checked="${entity.read}"
+                                                            @change="${() => this.updateEntityCheckbox(index, secondaryIndex, 'read', entity.read)}"
+                                                        >
+                                                    </td>
+                                                    <td>
+                                                        <mwc-checkbox
+                                                            .checked="${entity.write}"
+                                                            @change="${() => this.updateEntityCheckbox(index, secondaryIndex, 'write', entity.write)}"
+                                                        >
+                                                        </mwc-checkbox>
+                                                    </td>
+                                                    </tr>
+                                                `) : html`<tr><td colspan="3">No entities found</td></tr>`}
+                                                </tbody>
+                                            </table>
+                                            </td>
+                                        </tr>
+                                        ` : ''}
                                 `
                                 )}
                             </tbody>

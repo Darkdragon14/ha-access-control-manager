@@ -10,15 +10,15 @@
 
 ## HACS installation
 
-To install Guest Mode using [HACS](https://hacs.xyz/):
+To install Access Control Manager using [HACS](https://hacs.xyz/):
 
 1. Add this repository as a custom repository in HACS:
    - Go to **HACS** → **Integrations** → **Add Custom Repository**.
    - Enter the URL of this repository and select **Integration** as the category.
-2. Search for "Guest Mode" in HACS and install it.
+2. Search for "Access Control Manager" in HACS and install it.
 3. Restart Home Assistant.
 4. Go to **Settings** → **Devices & Services** → **Add Integration**.
-5. Search for "Guest Mode" and select it.
+5. Search for "Access Control Manager" and select it.
 
 ## Customizable options
 
@@ -34,9 +34,7 @@ To install Guest Mode using [HACS](https://hacs.xyz/):
 
 * Adding a message to confirm or display an error when we save :rocket:
 
-* View by devices or rooms to organize permissions more effectively :rocket:
-
-* 🔍 Search system to quickly find resources :rocket:
+* Search system to quickly find resources :rocket:
 
 * Adding a function to sanitize url for path_to_admin_ui :hammer_and_wrench:
 

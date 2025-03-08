@@ -8,7 +8,7 @@ from homeassistant.components import websocket_api
 from homeassistant.components.panel_custom import async_register_panel
 from homeassistant.helpers import config_validation as cv
 
-from .get_entities import list_entities
+from .get_devices import list_devices
 from .get_users import list_users
 from .get_auths import list_auths
 from .set_auths import set_auths
@@ -22,7 +22,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the ha_access_control_manager component."""
 
     websocket_api.async_register_command(hass, list_users)
-    websocket_api.async_register_command(hass, list_entities)
+    websocket_api.async_register_command(hass, list_devices)
     websocket_api.async_register_command(hass, list_auths)
     websocket_api.async_register_command(hass, set_auths)
     
