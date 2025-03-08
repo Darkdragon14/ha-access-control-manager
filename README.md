@@ -30,8 +30,6 @@ To install Access Control Manager using [HACS](https://hacs.xyz/):
 
 # Future improvements
 
-* Adding translations for multilingual support :rocket:
-
 * Adding a message to confirm or display an error when we save :rocket:
 
 * Search system to quickly find resources :rocket:
@@ -39,3 +37,7 @@ To install Access Control Manager using [HACS](https://hacs.xyz/):
 * Adding a function to sanitize url for path_to_admin_ui :hammer_and_wrench:
 
 * Improving error handling and code maintainability. :hammer_and_wrench:
+
+# Missing Translation
+
+If you want this component to support another language, feel free to submit a PR or create an issue. If you open an issue, I’ll gladly handle the translation for you! :smile:
