@@ -1,5 +1,6 @@
 # Access Control Manager For Home Assistant
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![HA integration usage](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=integration%20usage&suffix=%20installs&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.ha_access_control_manager.total)](https://analytics.home-assistant.io/custom_integrations.json)
 [![Hassfest](https://github.com/Darkdragon14/ha-access-control-manager/actions/workflows/hassfest.yml/badge.svg)](https://github.com/Darkdragon14/ha-access-control-manager/actions/workflows/hassfest.yml)
 [![HACS Action](https://github.com/Darkdragon14/ha-access-control-manager/actions/workflows/hacs_action.yml/badge.svg)](https://github.com/Darkdragon14/ha-access-control-manager/actions/workflows/hacs_action.yml)
 [![release](https://img.shields.io/github/v/release/Darkdragon14/ha-access-control-manager.svg)](https://github.com/Darkdragon14/ha-access-control-manager/releases)
