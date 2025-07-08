@@ -32,6 +32,7 @@ class AccessControlManager extends LitElement {
         this.dataUsers = [];
         this.dataGroups = [];
         this.isAnUser = false;
+        this.needToFetch = true;
         this.selected = {};
         this.newGroupName = '';
         this.openCreateGroup = false;
@@ -43,10 +44,11 @@ class AccessControlManager extends LitElement {
     }    
 
     update(changedProperties) {
-        if (changedProperties.has('hass') && this.hass) {
+        if (changedProperties.has('hass') && this.hass && this.needToFetch) {
             this.fetchUsers();
             this.fetchAuths();
             this.fetchDevices();
+            this.needToFetch = false;
         }
         super.update(changedProperties);
     }
