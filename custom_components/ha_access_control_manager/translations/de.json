@@ -64,6 +64,9 @@
             },
             "write": {
                 "name": "Schreiben"
+            },
+            "search_by_name": {
+                "name": "Suche nach Namen"
             }
         }
     }

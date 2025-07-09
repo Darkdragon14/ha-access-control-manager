@@ -64,6 +64,9 @@
             },
             "write": {
                 "name": "Write"
+            },
+            "search_by_name": {
+                "name": "Search by name"
             }
         }
     }
