@@ -19,7 +19,8 @@ class AccessControlManager extends LitElement {
             isAnUser: { type: Boolean },
             selected: { type: Object },
             newGroupName: { type: String },
-            openCreateGroup: { type: Boolean }
+            openCreateGroup: { type: Boolean },
+            searchTerm: { type: String }
         };
     }
 
@@ -37,6 +38,7 @@ class AccessControlManager extends LitElement {
         this.newGroupName = '';
         this.openCreateGroup = false;
         this.expandedDevices = new Set();
+        this.searchTerm = '';
     }
 
     translate(key) {
@@ -189,6 +191,10 @@ class AccessControlManager extends LitElement {
         this.newGroupName = e.target.value;
     }
 
+    handleSearchInput(e) {
+        this.searchTerm = e.target.value;
+    }
+
     save() {
         this.tableData.forEach(device => {
             device.entities.forEach(entity => {
@@ -279,6 +285,13 @@ class AccessControlManager extends LitElement {
                             label="${this.translate("save")}" 
                             @click=${this.save}
                             ></mwc-button>
+
+                            <ha-textfield
+                                class="search-input"
+                                label="${this.translate("search_by_name")}"
+                                .value=${this.searchTerm}
+                                @input=${this.handleSearchInput}
+                            ></ha-textfield>
                         </div>
                     </div>
                 </ha-card>
@@ -351,8 +364,8 @@ class AccessControlManager extends LitElement {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${this.tableData.map(
-                                (item, index) => html`
+                                ${this.tableData.filter(item => !this.searchTerm || item.name.toLowerCase().includes(this.searchTerm.toLowerCase())).map(
+                                (item) => html`
                                     <tr>
                                         <td>
                                             <mwc-button 
@@ -367,14 +380,14 @@ class AccessControlManager extends LitElement {
                                             <mwc-checkbox
                                                 .checked="${item.read}"
                                                 .indeterminate="${item.read === 'indeterminate'}"
-                                                @change="${() => this.updateCheckbox(index, 'read', item.read)}"
+                                                @change="${() => this.updateCheckbox(this.tableData.indexOf(item), 'read', item.read)}"
                                             >
                                         </td>
                                         <td>
                                             <mwc-checkbox
                                                 .checked="${item.write}"
                                                 .indeterminate="${item.write === 'indeterminate'}"
-                                                @change="${() => this.updateCheckbox(index, 'write', item.write)}"
+                                                @change="${() => this.updateCheckbox(this.tableData.indexOf(item), 'write', item.write)}"
                                             >
                                             </mwc-checkbox>
                                         </td>
@@ -398,13 +411,13 @@ class AccessControlManager extends LitElement {
                                                     <td>
                                                         <mwc-checkbox
                                                             .checked="${entity.read}"
-                                                            @change="${() => this.updateEntityCheckbox(index, secondaryIndex, 'read', entity.read)}"
+                                                            @change="${() => this.updateEntityCheckbox(this.tableData.indexOf(item), secondaryIndex, 'read', entity.read)}"
                                                         >
                                                     </td>
                                                     <td>
                                                         <mwc-checkbox
                                                             .checked="${entity.write}"
-                                                            @change="${() => this.updateEntityCheckbox(index, secondaryIndex, 'write', entity.write)}"
+                                                            @change="${() => this.updateEntityCheckbox(this.tableData.indexOf(item), secondaryIndex, 'write', entity.write)}"
                                                         >
                                                         </mwc-checkbox>
                                                     </td>
@@ -529,6 +542,9 @@ class AccessControlManager extends LitElement {
                 margin-right: 10px;
             }
 
+            .search-input {
+                margin-left: auto;
+            }
 
             .group-card,
             .entites-cards {
