@@ -195,6 +195,33 @@ class AccessControlManager extends LitElement {
         this.searchTerm = e.target.value;
     }
 
+    getSelectAllState(field) {
+        const filteredData = this.tableData.filter(item => !this.searchTerm || item.name.toLowerCase().includes(this.searchTerm.toLowerCase()));
+        if (filteredData.length === 0) {
+            return false;
+        }
+        const states = filteredData.map(item => item[field]);
+        const allChecked = states.every(val => val === true);
+        if (allChecked) return true;
+        const someChecked = states.some(val => val === true || val === 'indeterminate');
+        if (someChecked) return 'indeterminate';
+        return false;
+    }
+
+    handleSelectAll(field, event) {
+        const isChecked = event.target.checked;
+        const filteredData = this.tableData.filter(item => !this.searchTerm || item.name.toLowerCase().includes(this.searchTerm.toLowerCase()));
+        
+        filteredData.forEach(item => {
+            item[field] = isChecked;
+            item.entities.forEach(entity => {
+                entity[field] = isChecked;
+            });
+        });
+        this.tableData = [...this.tableData];
+        this.requestUpdate();
+    }
+
     save() {
         this.tableData.forEach(device => {
             device.entities.forEach(entity => {
@@ -357,10 +384,24 @@ class AccessControlManager extends LitElement {
                         <table>
                             <thead>
                                 <tr>
-                                <th></th>
-                                ${this.tableHeaders.map(
-                                    (header) => html`<th>${this.translate(header)}</th>`
-                                )}
+                                    <th></th>
+                                    ${this.tableHeaders.map(
+                                        (header) => {
+                                            if (header === 'read' || header === 'write') {
+                                                const state = this.getSelectAllState(header);
+                                                return html`<th>
+                                                    <mwc-checkbox 
+                                                        .checked=${state === true}
+                                                        .indeterminate=${state === 'indeterminate'}
+                                                        @change=${(e) => this.handleSelectAll(header, e)}
+                                                        style="vertical-align: middle; margin-right: 4px;">
+                                                    </mwc-checkbox>
+                                                    <span style="vertical-align: middle;">${this.translate(header)}</span>
+                                                </th>`
+                                            }
+                                            return html`<th>${this.translate(header)}</th>`
+                                        }
+                                    )}
                                 </tr>
                             </thead>
                             <tbody>
