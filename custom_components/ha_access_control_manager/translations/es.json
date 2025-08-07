@@ -67,6 +67,9 @@
             },
             "search_by_name": {
                 "name": "Buscar por nombre"
+            },
+            "custom_group_warning": {
+                "name": "Atención, tiene un grupo personalizado sin políticas declaradas. Por favor, establezca al menos una política antes de reiniciar Home Assistant"
             }
         }
     }
