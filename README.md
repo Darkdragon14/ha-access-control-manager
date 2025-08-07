@@ -21,6 +21,16 @@ To install Access Control Manager using [HACS](https://hacs.xyz/):
 4. Go to **Settings** → **Devices & Services** → **Add Integration**.
 5. Search for "Access Control Manager" and select it.
 
+# How it works
+
+This section was added following [this issue](https://github.com/Darkdragon14/ha-access-control-manager/issues/13).
+
+To set up custom access management, you need to follow these steps:
+
+1.  **Create a new group**: Define a new group that will have specific permissions.
+2.  **Unassign the `Users` group**: For the users you want to restrict, you must remove them from the default `Users` group. As explained in the [Home Assistant developer documentation](https://developers.home-assistant.io/docs/auth_permissions/#merging-policies), policies are merged, and the `Users` group grants broad permissions by default. To apply restrictive policies, the user must not be a member of the `Users` group.
+3.  **Set permissions**: Assign the desired permissions to the new group you have created.
+
 ## Customizable options
 
 |Option Name|Description|required|default Value|

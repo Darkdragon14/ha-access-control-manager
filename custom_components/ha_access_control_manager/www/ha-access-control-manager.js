@@ -18,6 +18,7 @@ class AccessControlManager extends LitElement {
             dataGroups: { type: Array },
             isAnUser: { type: Boolean },
             selected: { type: Object },
+            needToSetPermissions: { type: Boolean },
             newGroupName: { type: String },
             openCreateGroup: { type: Boolean },
             searchTerm: { type: String },
@@ -36,6 +37,7 @@ class AccessControlManager extends LitElement {
         this.isAnUser = false;
         this.needToFetch = true;
         this.selected = {};
+        this.needToSetPermissions = false;
         this.newGroupName = '';
         this.openCreateGroup = false;
         this.expandedDevices = new Set();
@@ -114,8 +116,8 @@ class AccessControlManager extends LitElement {
             });*/
         });
 
-        
         this.dataUsers = users;
+        this.displayCustomGroupWarning();
     }
 
     changeUser(e) {
@@ -123,7 +125,6 @@ class AccessControlManager extends LitElement {
         const user = this.dataUsers.find(user => user.id === userId);
         this.selected = user;
         this.isAnUser = true;
-        this.loadData(user);
     }
 
     changeGroup(e) {
@@ -135,21 +136,37 @@ class AccessControlManager extends LitElement {
     }
 
     loadData(data) {
-        let allTrue = false;
-        if (!data?.policy?.entities?.entity_ids || Object.keys(data.policy.entities.entity_ids).length === 0) {
-            allTrue = true;
+        let allTrueRW = false;
+        let allTrueRead = false;
+        if (data.id === 'system-users' || data.id === 'system-admin') {
+            allTrueRW = true;
+        }
+
+        if (data.id === 'system-read-only') {
+            allTrueRead = true;
         }
 
         this.tableData.forEach(device => {
             device.entities.forEach(entity => {
-                if (allTrue) {
+                if (allTrueRW) {
                     entity.read = true;
                     entity.write = true;
                     return;
                 }
 
-                entity.read = data.policy.entities.entity_ids[entity.entity_id] ? true : false;
-                entity.write = data.policy.entities.entity_ids[entity.entity_id] && typeof data.policy.entities.entity_ids[entity.entity_id] !== 'object' ? true : false;
+                if (allTrueRead) {
+                    entity.read = true;
+                    entity.write = false;
+                    return;
+                }
+
+                if(data.policy?.entities?.entity_ids[entity.entity_id]) {
+                    entity.read = data.policy.entities.entity_ids[entity.entity_id] ? true : false;
+                    entity.write = data.policy.entities.entity_ids[entity.entity_id] && typeof data.policy.entities.entity_ids[entity.entity_id] !== 'object' ? true : false;
+                } else {
+                    entity.read = false;
+                    entity.write = false;
+                }
             });
 
             const entityReads = device.entities.map(entity => entity.read);
@@ -188,6 +205,7 @@ class AccessControlManager extends LitElement {
             })
             this.newGroupName = '';
         }
+        this.needToSetPermissions = true;
     }
     
     handleNewGroupInput(e) {
@@ -241,6 +259,17 @@ class AccessControlManager extends LitElement {
         }).filter(Boolean);
     }
 
+    displayCustomGroupWarning() {
+        this.needToSetPermissions = false;
+        this.dataGroups.forEach(group => {
+            if (group.id.startsWith('custom-group-')) {
+                if (!group.policy || !group.policy.entities || Object.keys(group.policy.entities.entity_ids).length === 0) {
+                    this.needToSetPermissions = true;
+                }
+            }
+        })
+    }
+
     getSelectAllState(field) {
         const filteredData = this.processedTableData;
         if (filteredData.length === 0) {
@@ -272,19 +301,29 @@ class AccessControlManager extends LitElement {
     }
 
     save() {
-        this.tableData.forEach(device => {
-            device.entities.forEach(entity => {
-                if (entity.read && entity.write) {
-                    this.selected.policy.entities.entity_ids[entity.entity_id] = true;
-                } else if (entity.read) {
-                    this.selected.policy.entities.entity_ids[entity.entity_id] = {
-                        read: true
-                    };
-                } else {
-                    delete this.selected.policy.entities.entity_ids[entity.entity_id];
-                }
+        if (!this.isAnUser) {
+            if (!this.selected.policy) {
+                this.selected.policy = {
+                    entities: {
+                        entity_ids: {}
+                    }
+                };
+            }
+            
+            this.tableData.forEach(device => {
+                device.entities.forEach(entity => {
+                    if (entity.read && entity.write) {
+                        this.selected.policy.entities.entity_ids[entity.entity_id] = true;
+                    } else if (entity.read) {
+                        this.selected.policy.entities.entity_ids[entity.entity_id] = {
+                            read: true
+                        };
+                    } else {
+                        delete this.selected.policy.entities.entity_ids[entity.entity_id];
+                    }
+                });
             });
-        });
+        }
         this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: this.selected }).then(data => {
             this.loadAuths(data);
         })
@@ -404,6 +443,13 @@ class AccessControlManager extends LitElement {
                         </div>
                     </div>
                 </ha-card>
+                ${this.needToSetPermissions ? html`
+                    <div class="container-alert">
+                        <ha-alert alert-type="warning">
+                            ${this.translate("custom_group_warning")}
+                        </ha-alert>
+                    </div>
+                ` : null}
                 ${this.isAnUser ? html`
                     <ha-card class="group-card" header="Groups">
                         <div class="group-list">
@@ -427,6 +473,12 @@ class AccessControlManager extends LitElement {
                                     label="${this.translate("create_new_group")}" 
                                     @click=${(e) => this.openCreateGroup = true}
                                 ></mwc-button>
+                                <mwc-button 
+                                    raised 
+                                    label="${this.translate("save")}" 
+                                    @click="${this.save}"
+                                >
+                                </mwc-button>
                                 <ha-dialog 
                                     .open=${this.openCreateGroup}
                                     heading="${this.translate("create_new_group")}" 
@@ -459,119 +511,119 @@ class AccessControlManager extends LitElement {
                             </div>
                         </div>
                     </ha-card>`
-                : null}
-
-                <ha-card class="entites-cards" header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
-                    <div class="table-wrapper">
-                        ${this._isLoading ? html`                            
-                            <div class="spinner-container">
-                                <div class="spinner"></div>
-                            </div>
-                        ` : html`
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th></th>
-                                        ${this.tableHeaders.map(
-                                            (header) => {
-                                                if (header === 'read' || header === 'write') {
-                                                    const state = this.getSelectAllState(header);
-                                                    return html`<th>
-                                                        <mwc-checkbox 
-                                                            .checked=${state === true}
-                                                            .indeterminate=${state === 'indeterminate'}
-                                                            @change=${(e) => this.handleSelectAll(header, e)}
-                                                            style="vertical-align: middle; margin-right: 4px;">
-                                                        </mwc-checkbox>
-                                                        <span style="vertical-align: middle;">${this.translate(header)}</span>
-                                                    </th>`
-                                                }
-                                                return html`<th>${this.translate(header)}</th>`
-                                            }
-                                        )}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${this.processedTableData.map(
-                                    (item) => html`
+                : html`
+                    <ha-card class="entites-cards" header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
+                        <div class="table-wrapper">
+                            ${this._isLoading ? html`                            
+                                <div class="spinner-container">
+                                    <div class="spinner"></div>
+                                </div>
+                            ` : html`
+                                <table>
+                                    <thead>
                                         <tr>
-                                            <td>
-                                                <mwc-button 
-                                                    raised 
-                                                    label="${item.isExpanded ? "-" : "+"}" 
-                                                    @click=${() => this.toggleEntities(item.id)}
-                                                    dense="true"
-                                                ></mwc-button>
-                                            </td>
-                                            <td>${item[this.tableHeaders[0]]}</td>
-                                            <td>
-                                                <mwc-checkbox
-                                                    .checked="${item.read === true}"
-                                                    .indeterminate="${item.read === 'indeterminate'}"
-                                                    @change="${(e) => this.updateCheckbox(item.id, 'read', e.target.checked)}"
-                                                >
-                                            </td>
-                                            <td>
-                                                <mwc-checkbox
-                                                    .checked="${item.write === true}"
-                                                    .indeterminate="${item.write === 'indeterminate'}"
-                                                    @change="${(e) => this.updateCheckbox(item.id, 'write', e.target.checked)}"
-                                                >
-                                                </mwc-checkbox>
-                                            </td>
-                                        </tr>
-                                        ${item.isExpanded ? html`
-                                            <tr>
-                                                <td colspan="4">
-                                                <table>
-                                                    <thead>
-                                                    <tr>
-                                                        ${this.tableHeadersEntities.map(
-                                                            (header) => html`<th>${this.translate(header)}</th>`
-                                                        )}
-                                                    </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                    ${item.displayEntities.length > 0 ? item.displayEntities.map((entity) => html`
-                                                        <tr>
-                                                        <td>${entity.name === 'Unknown' ?  entity.original_name : entity.name}</td>
-                                                        <td>${entity[this.tableHeadersEntities[1]]}</td>
-                                                        <td>
-                                                            <mwc-checkbox
-                                                                .checked="${entity.read}"
-                                                                @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'read', e.target.checked)}"
-                                                            >
-                                                        </td>
-                                                        <td>
-                                                            <mwc-checkbox
-                                                                .checked="${entity.write}"
-                                                                @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'write', e.target.checked)}"
-                                                            >
+                                            <th></th>
+                                            ${this.tableHeaders.map(
+                                                (header) => {
+                                                    if (header === 'read' || header === 'write') {
+                                                        const state = this.getSelectAllState(header);
+                                                        return html`<th>
+                                                            <mwc-checkbox 
+                                                                .checked=${state === true}
+                                                                .indeterminate=${state === 'indeterminate'}
+                                                                @change=${(e) => this.handleSelectAll(header, e)}
+                                                                style="vertical-align: middle; margin-right: 4px;">
                                                             </mwc-checkbox>
-                                                        </td>
-                                                        </tr>
-                                                    `) : html`<tr><td colspan="3">${this.translate("entites_not_found")}</td></tr>`}
-                                                    </tbody>
-                                                </table>
+                                                            <span style="vertical-align: middle;">${this.translate(header)}</span>
+                                                        </th>`
+                                                    }
+                                                    return html`<th>${this.translate(header)}</th>`
+                                                }
+                                            )}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${this.processedTableData.map(
+                                        (item) => html`
+                                            <tr>
+                                                <td>
+                                                    <mwc-button 
+                                                        raised 
+                                                        label="${item.isExpanded ? "-" : "+"}" 
+                                                        @click=${() => this.toggleEntities(item.id)}
+                                                        dense="true"
+                                                    ></mwc-button>
+                                                </td>
+                                                <td>${item[this.tableHeaders[0]]}</td>
+                                                <td>
+                                                    <mwc-checkbox
+                                                        .checked="${item.read === true}"
+                                                        .indeterminate="${item.read === 'indeterminate'}"
+                                                        @change="${(e) => this.updateCheckbox(item.id, 'read', e.target.checked)}"
+                                                    >
+                                                </td>
+                                                <td>
+                                                    <mwc-checkbox
+                                                        .checked="${item.write === true}"
+                                                        .indeterminate="${item.write === 'indeterminate'}"
+                                                        @change="${(e) => this.updateCheckbox(item.id, 'write', e.target.checked)}"
+                                                    >
+                                                    </mwc-checkbox>
                                                 </td>
                                             </tr>
-                                            ` : ''}
-                                    `
-                                    )}
-                                </tbody>
-                            </table>
-                        `}
-                    </div>
+                                            ${item.isExpanded ? html`
+                                                <tr>
+                                                    <td colspan="4">
+                                                    <table>
+                                                        <thead>
+                                                        <tr>
+                                                            ${this.tableHeadersEntities.map(
+                                                                (header) => html`<th>${this.translate(header)}</th>`
+                                                            )}
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        ${item.displayEntities.length > 0 ? item.displayEntities.map((entity) => html`
+                                                            <tr>
+                                                            <td>${entity.name === 'Unknown' ?  entity.original_name : entity.name}</td>
+                                                            <td>${entity[this.tableHeadersEntities[1]]}</td>
+                                                            <td>
+                                                                <mwc-checkbox
+                                                                    .checked="${entity.read}"
+                                                                    @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'read', e.target.checked)}"
+                                                                >
+                                                            </td>
+                                                            <td>
+                                                                <mwc-checkbox
+                                                                    .checked="${entity.write}"
+                                                                    @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'write', e.target.checked)}"
+                                                                >
+                                                                </mwc-checkbox>
+                                                            </td>
+                                                            </tr>
+                                                        `) : html`<tr><td colspan="3">${this.translate("entites_not_found")}</td></tr>`}
+                                                        </tbody>
+                                                    </table>
+                                                    </td>
+                                                </tr>
+                                                ` : ''}
+                                        `
+                                        )}
+                                    </tbody>
+                                </table>
+                            `}
+                        </div>
 
-                    <div class="card-footer">
-                        <mwc-button 
-                            raised 
-                            label="${this.translate("save")}" 
-                            @click="${this.save}"
-                        >
-                        </mwc-button>
-                    </div>
-                </ha-card>
+                        <div class="card-footer">
+                            <mwc-button 
+                                raised 
+                                label="${this.translate("save")}" 
+                                @click="${this.save}"
+                            >
+                            </mwc-button>
+                        </div>
+                    </ha-card>`
+                }
             </div>
         </div>
         `
@@ -719,6 +771,11 @@ class AccessControlManager extends LitElement {
                 gap: 10px;
                 align-items: center;
                 margin-top: 12px;
+            }
+
+            .container-alert {
+                margin-top: 15px;
+                padding: 0 2%;
             }
 
             .table-wrapper {

@@ -1,5 +1,7 @@
 import os
 import aiofiles
+import json
+from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
@@ -17,6 +19,16 @@ from .bash_script import is_script_running, start_script
 from .const import DOMAIN, DEST_PATH_SCRIPT_JS, SOURCE_PATH_SCRIPT_JS, SCRIPT_JS, SCRIPT_BASH
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+
+def get_version():
+    manifest_path = Path(__file__).parent / "manifest.json"
+    try:
+        with open(manifest_path, encoding="utf-8") as f:
+            return json.load(f).get("version", "dev")
+    except Exception:
+        return "dev"
+
+VERSION = get_version()
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the ha_access_control_manager component."""
@@ -58,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             hass,
             frontend_url_path=path,
             webcomponent_name="access-control-manager",
-            module_url=f"/local/community/ha-access-control-manager/ha-access-control-manager.js?v={get_version()}",
+            module_url=f"/local/community/ha-access-control-manager/ha-access-control-manager.js?v={VERSION}",
             sidebar_title=tab_name,
             sidebar_icon=tab_icon,
             require_admin=True,
@@ -90,8 +102,3 @@ async def async_copy_file(source_path, dest_path):
     async with aiofiles.open(source_path, 'rb') as src, aiofiles.open(dest_path, 'wb') as dst:
         while chunk := await src.read(1024):  # Adjust chunk size as needed
             await dst.write(chunk)
-
-def get_version():
-    manifest_path = Path(__file__).parent / "manifest.json"
-    with open(manifest_path, encoding="utf-8") as f:
-        return json.load(f).get("version", "dev")
