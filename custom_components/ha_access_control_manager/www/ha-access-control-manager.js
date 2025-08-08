@@ -428,11 +428,11 @@ class AccessControlManager extends LitElement {
                             >
                             </ha-combo-box>
 
-                            <mwc-button 
-                            raised 
-                            label="${this.translate("save")}" 
-                            @click=${this.save}
-                            ></mwc-button>
+                            <ha-button
+                                @click=${this.save}
+                            >
+                                ${this.translate("save")}
+                            </ha-button>
 
                             <ha-textfield
                                 class="search-input"
@@ -468,17 +468,16 @@ class AccessControlManager extends LitElement {
                                 </div>`
                             })}
                             <div class="new-group-input">
-                                <mwc-button 
-                                    raised 
-                                    label="${this.translate("create_new_group")}" 
+                                <ha-button
                                     @click=${(e) => this.openCreateGroup = true}
-                                ></mwc-button>
-                                <mwc-button 
-                                    raised 
-                                    label="${this.translate("save")}" 
+                                >
+                                    ${this.translate("create_new_group")}
+                                </ha-button>
+                                <ha-button
                                     @click="${this.save}"
                                 >
-                                </mwc-button>
+                                    ${this.translate("save")}
+                                </ha-button>
                                 <ha-dialog 
                                     .open=${this.openCreateGroup}
                                     heading="${this.translate("create_new_group")}" 
@@ -493,20 +492,22 @@ class AccessControlManager extends LitElement {
                                             @input="${this.handleNewGroupInput}"
                                         ></ha-textfield>
                                     </div>
-                                    <mwc-button
+                                    <ha-button
+                                        appearance="plain"
                                         dialogAction="save"
                                         slot="primaryAction"
                                         @click="${this.handleNewGroupSave}"
                                     >
                                         ${this.translate("save")}
-                                    </mwc-button>
-                                    <mwc-button
+                                    </ha-button>
+                                    <ha-button
+                                        appearance="plain"
                                         dialogAction="cancel"
                                         slot="secondaryAction"
                                         @click="${(e) => this.openCreateGroup = false}"
                                     >
                                         ${this.translate("cancel")}
-                                    </mwc-button>
+                                    </ha-button>
                                 </ha-dialog>
                             </div>
                         </div>
@@ -547,12 +548,12 @@ class AccessControlManager extends LitElement {
                                         (item) => html`
                                             <tr>
                                                 <td>
-                                                    <mwc-button 
-                                                        raised 
-                                                        label="${item.isExpanded ? "-" : "+"}" 
+                                                    <ha-button
                                                         @click=${() => this.toggleEntities(item.id)}
-                                                        dense="true"
-                                                    ></mwc-button>
+                                                        appearance="plain"
+                                                    >
+                                                        ${item.isExpanded ? "-" : "+"}
+                                                    </ha-button>
                                                 </td>
                                                 <td>${item[this.tableHeaders[0]]}</td>
                                                 <td>
@@ -615,12 +616,11 @@ class AccessControlManager extends LitElement {
                         </div>
 
                         <div class="card-footer">
-                            <mwc-button 
-                                raised 
-                                label="${this.translate("save")}" 
+                            <ha-button
                                 @click="${this.save}"
                             >
-                            </mwc-button>
+                                ${this.translate("save")}
+                            </ha-button>
                         </div>
                     </ha-card>`
                 }
@@ -818,7 +818,7 @@ class AccessControlManager extends LitElement {
                 border-bottom-right-radius: var(--ha-card-border-radius,12px);
             }
 
-            mwc-button:hover {
+            ha-button:hover {
                 transform: scale(1.05);
                 transition: transform 0.2s ease;
             }
