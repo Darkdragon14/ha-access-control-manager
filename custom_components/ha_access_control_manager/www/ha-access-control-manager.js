@@ -397,6 +397,13 @@ class AccessControlManager extends LitElement {
             <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
                 <div class="mdc-top-app-bar__row">
                     <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start" id="navigation">
+                        <mwc-icon-button class="menu-button"
+                            @click=${() => this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true }))}
+                        >
+                            <svg style="width:24px;height:24px" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z" />
+                            </svg>
+                        </mwc-icon-button>
                         <span class="mdc-top-app-bar__title">
                             ${this.panel.title}
                         </span>
@@ -672,6 +679,16 @@ class AccessControlManager extends LitElement {
                 min-width: 0px;
                 padding: 8px 12px;
                 z-index: 1;
+            }
+            .menu-button {
+                display: none;
+            }
+
+            /* Affiche le bouton uniquement en dessous de 1024px */
+            @media screen and (max-width: 870px) {
+                .menu-button {
+                display: inline-flex;
+                }
             }
             .mdc-top-app-bar__title {
                 -webkit-font-smoothing: antialiased;
