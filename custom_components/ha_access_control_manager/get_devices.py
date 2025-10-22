@@ -23,7 +23,7 @@ def convert_device_entry(device):
         "created_at": device.created_at.isoformat() if device.created_at else None,
         "modified_at": device.modified_at.isoformat() if device.modified_at else None,
         "entry_type": device.entry_type.value if device.entry_type else None,
-        "is_new": device.is_new,
+        "is_new": getattr(device, "is_new", False),
         "entities": []  # Initialisation de la liste des entités associées
     }
 
