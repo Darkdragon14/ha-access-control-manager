@@ -70,6 +70,24 @@
             },
             "custom_group_warning": {
                 "name": "Attenzione, hai un gruppo personalizzato senza policy dichiarate. Imposta almeno una policy prima di riavviare Home Assistant"
+            },
+            "dashboard_permissions_for": {
+                "name": "Permessi dashboard per"
+            },
+            "dashboards_not_found": {
+                "name": "Nessuna dashboard trovata"
+            },
+            "views_not_found": {
+                "name": "Nessuna vista trovata"
+            },
+            "unknown_view": {
+                "name": "Vista senza nome"
+            },
+            "unknown_dashboard": {
+                "name": "Dashboard senza nome"
+            },
+            "visible": {
+                "name": "Visibile"
             }
         }
     }

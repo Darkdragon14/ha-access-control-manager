@@ -70,6 +70,24 @@
             },
             "custom_group_warning": {
                 "name": "Attention vous avez un groupe personalisé sans polices déclarées veuillez set au moins une police avant de restart home assistant"
+            },
+            "dashboard_permissions_for": {
+                "name": "Droits des tableaux de bord pour"
+            },
+            "dashboards_not_found": {
+                "name": "Aucun tableau de bord trouvé"
+            },
+            "views_not_found": {
+                "name": "Aucune vue trouvée"
+            },
+            "unknown_view": {
+                "name": "Vue sans nom"
+            },
+            "unknown_dashboard": {
+                "name": "Tableau de bord sans nom"
+            },
+            "visible": {
+                "name": "Visible"
             }
         } 
     }

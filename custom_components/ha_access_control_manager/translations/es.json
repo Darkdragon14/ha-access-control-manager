@@ -70,6 +70,24 @@
             },
             "custom_group_warning": {
                 "name": "Atención, tiene un grupo personalizado sin políticas declaradas. Por favor, establezca al menos una política antes de reiniciar Home Assistant"
+            },
+            "dashboard_permissions_for": {
+                "name": "Permisos de paneles para"
+            },
+            "dashboards_not_found": {
+                "name": "No se encontraron paneles"
+            },
+            "views_not_found": {
+                "name": "No se encontraron vistas"
+            },
+            "unknown_view": {
+                "name": "Vista sin nombre"
+            },
+            "unknown_dashboard": {
+                "name": "Panel sin nombre"
+            },
+            "visible": {
+                "name": "Visible"
             }
         }
     }
