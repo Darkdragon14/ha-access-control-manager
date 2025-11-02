@@ -1,0 +1,76 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "tab_icon": "Fül ikon",
+                    "tab_name": "Fül neve",
+                    "path": "Admin kezelőfelülethez az elérés"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "tab_icon": "Fül ikon",
+                    "tab_name": "Fül neve",
+                    "path": "Admin kezelőfelülethez az elérés"
+                }
+            }
+        }
+    },
+    "entity": {
+        "frontend": {
+            "user": {
+                "name": "Felhasználó"
+            },
+            "group": {
+                "name": "Csoportok"
+            },
+            "save": {
+                "name": "Mentés"
+            },
+            "create_new_group": {
+                "name": "Új csoport létrehozása"
+            },
+            "group_name": {
+                "name": "Csoport neve"
+            },
+            "enter_group_name": {
+                "name": "Kérlek, add meg a csoport nevét."
+            },
+            "cancel": {
+                "name": "Visszavonás"
+            },
+            "device_permissions_for": {
+                "name": "Eszköz engedélye"
+            },
+            "select_an_user_or_a_group": {
+                "name": "Kérlek, válassz egy felhasználót vagy csoportot"
+            },
+            "entities_not_found": {
+                "name": "Nem található entitás"
+            },
+            "name": {
+                "name": "Név"
+            },
+            "entity_id": {
+                "name": "Entitás azonosító"
+            },
+            "read": {
+                "name": "Olvasás"
+            },
+            "write": {
+                "name": "Írás"
+            },
+            "search_by_name": {
+                "name": "Keresés név alapján"
+            },
+            "custom_group_warning": {
+                "name": "Figyelem, van egy egyedi csoportod, aminek nincsenek szabályai. Kérlek, adj hozzá legalább egy szabályt, mielőtt újraindítod a Home Assistant-ot."
+            }
+        }
+    }
+}
