@@ -46,6 +46,8 @@ class AccessControlManager extends LitElement {
         this.openCreateGroup = false;
         this.expandedDevices = new Set();
         this.expandedDashboards = new Set();
+        this._dashboardsTemplate = [];
+        this._pendingDashboardSelection = null;
         this.searchTerm = '';
         this._isLoading = false;
         this.searchTimeout = null;
@@ -100,9 +102,18 @@ class AccessControlManager extends LitElement {
     }
 
     loadAuths(data) {
-        this.dataGroups = data.groups;
+        const groups = Array.isArray(data.groups) ? data.groups.map(group => ({
+            ...group,
+            dashboards: group.dashboards || {}
+        })) : [];
+        groups.forEach(group => {
+            if (!group.dashboards) {
+                group.dashboards = {};
+            }
+        });
+        this.dataGroups = groups;
 
-        const users = data.users;
+        const users = Array.isArray(data.users) ? data.users : [];
 
         users.forEach(user => {
             if (!user.policy?.entities) {
@@ -129,16 +140,34 @@ class AccessControlManager extends LitElement {
         });
 
         this.dataUsers = users;
+        
+        if (this.selected?.id) {
+            if (this.isAnUser) {
+                const updatedUser = this.dataUsers.find(user => user.id === this.selected.id);
+                if (updatedUser) {
+                    this.selected = updatedUser;
+                }
+            } else {
+                const updatedGroup = this.dataGroups.find(group => group.id === this.selected.id);
+                if (updatedGroup) {
+                    this.selected = updatedGroup;
+                    this.loadData(updatedGroup);
+                    this.loadDashboardPermissions(updatedGroup);
+                }
+            }
+        }
+
         this.displayCustomGroupWarning();
     }
 
     initializeDashboardsData(dashboards = []) {
         if (!Array.isArray(dashboards) || dashboards.length === 0) {
+            this._dashboardsTemplate = [];
             this.dashboardsData = [];
             return;
         }
 
-        this.dashboardsData = dashboards.map(dashboard => {
+        const preparedDashboards = dashboards.map(dashboard => {
             const views = (dashboard.views || []).map(view => ({
                 ...view,
                 visible: view.visible ?? false
@@ -163,6 +192,29 @@ class AccessControlManager extends LitElement {
                 views
             };
         });
+
+        this._dashboardsTemplate = this.cloneDashboards(preparedDashboards);
+        this.dashboardsData = this.cloneDashboards(preparedDashboards);
+
+        if (!this.isAnUser && this.selected?.id) {
+            const group = this.dataGroups.find(item => item.id === this.selected.id);
+            if (group) {
+                this.loadDashboardPermissions(group);
+            }
+        } else if (this._pendingDashboardSelection) {
+            const pendingGroup = this.dataGroups.find(item => item.id === this._pendingDashboardSelection);
+            if (pendingGroup) {
+                this.loadDashboardPermissions(pendingGroup);
+            }
+            this._pendingDashboardSelection = null;
+        }
+    }
+
+    cloneDashboards(dashboards = []) {
+        return dashboards.map(dashboard => ({
+            ...dashboard,
+            views: (dashboard.views || []).map(view => ({ ...view }))
+        }));
     }
 
     changeUser(e) {
@@ -178,6 +230,7 @@ class AccessControlManager extends LitElement {
         this.selected = group;
         this.isAnUser = false;
         this.loadData(group);
+        this.loadDashboardPermissions(group);
     }
 
     loadData(data) {
@@ -225,6 +278,66 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    loadDashboardPermissions(group) {
+        if (!group) {
+            this.dashboardsData = this.cloneDashboards(this._dashboardsTemplate || []);
+            return;
+        }
+
+        if (!Array.isArray(this._dashboardsTemplate) || this._dashboardsTemplate.length === 0) {
+            this._pendingDashboardSelection = group.id;
+            return;
+        }
+
+        if (!group.dashboards) {
+            group.dashboards = {};
+        }
+
+        const dashboardsMap = group.dashboards || {};
+        const clonedDashboards = this.cloneDashboards(this._dashboardsTemplate);
+
+        this.dashboardsData = clonedDashboards.map(dashboard => {
+            const storedDashboard = dashboardsMap[dashboard.id];
+            const clonedViews = (dashboard.views || []).map(view => {
+                let viewVisible = false;
+                if (storedDashboard && storedDashboard.views && Object.prototype.hasOwnProperty.call(storedDashboard.views, view.id)) {
+                    viewVisible = storedDashboard.views[view.id] === true;
+                } else if (storedDashboard && storedDashboard.visible === true) {
+                    viewVisible = true;
+                }
+
+                return {
+                    ...view,
+                    visible: viewVisible
+                };
+            });
+
+            let visibleState = false;
+
+            if (clonedViews.length > 0) {
+                const allVisible = clonedViews.every(val => val.visible === true);
+                const someVisible = clonedViews.some(val => val.visible === true);
+                if (allVisible) {
+                    visibleState = true;
+                } else if (someVisible) {
+                    visibleState = 'indeterminate';
+                } else {
+                    visibleState = false;
+                }
+            } else if (storedDashboard && storedDashboard.visible === true) {
+                visibleState = true;
+            }
+
+            return {
+                ...dashboard,
+                views: clonedViews,
+                visible: visibleState
+            };
+        });
+
+        this._pendingDashboardSelection = null;
+    }
+
     handleCheckboxChange(groupId, checked) {
         if (checked) {
             this.selected.group_ids.push(groupId);
@@ -243,7 +356,7 @@ class AccessControlManager extends LitElement {
         const name = this.newGroupName.trim();
         if (name) {
             const id = `custom-group-${name.toLowerCase().replaceAll(' ', '-')}`;
-            const newGroup = { id, name };
+            const newGroup = { id, name, dashboards: {} };
             this.dataGroups = [...this.dataGroups, newGroup];
             this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: false, data: newGroup }).then(data => {
                 this.loadAuths(data);
@@ -384,7 +497,31 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    collectDashboardPermissions() {
+        const result = {};
+
+        this.dashboardsData.forEach(dashboard => {
+            const entry = {
+                visible: dashboard.visible === true,
+            };
+
+            if ((dashboard.views || []).length > 0) {
+                const viewStates = {};
+                dashboard.views.forEach(view => {
+                    viewStates[view.id] = view.visible === true;
+                });
+                entry.views = viewStates;
+            }
+
+            result[dashboard.id] = entry;
+        });
+
+        return result;
+    }
+
     save() {
+        let payload = this.selected;
+
         if (!this.isAnUser) {
             if (!this.selected.policy) {
                 this.selected.policy = {
@@ -407,8 +544,14 @@ class AccessControlManager extends LitElement {
                     }
                 });
             });
+            const dashboards = this.collectDashboardPermissions();
+            this.selected.dashboards = dashboards;
+            payload = {
+                ...this.selected,
+                dashboards
+            };
         }
-        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: this.selected }).then(data => {
+        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: payload }).then(data => {
             this.loadAuths(data);
         })
     }
