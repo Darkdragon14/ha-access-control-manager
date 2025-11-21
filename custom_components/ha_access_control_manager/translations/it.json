@@ -32,6 +32,9 @@
             "save": {
                 "name": "Salva"
             },
+            "restart": {
+                "name": "Riavvia"
+            },
             "create_new_group": {
                 "name": "Crea un nuovo gruppo"
             },

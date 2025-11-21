@@ -32,6 +32,9 @@
             "save": {
                 "name": "Mentés"
             },
+            "restart": {
+                "name": "Újraindítás"
+            },
             "create_new_group": {
                 "name": "Új csoport létrehozása"
             },

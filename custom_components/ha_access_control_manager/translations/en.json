@@ -32,6 +32,9 @@
             "save": {
                 "name": "Save"
             },
+            "restart": {
+                "name": "Restart"
+            },
             "create_new_group": {
                 "name": "Create a new group"
             },
