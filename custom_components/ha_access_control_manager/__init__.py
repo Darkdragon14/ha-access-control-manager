@@ -14,9 +14,13 @@ from .get_devices import list_devices
 from .get_users import list_users
 from .get_auths import list_auths
 from .set_auths import set_auths
-from .bash_script import is_script_running, start_script
 
-from .const import DOMAIN, DEST_PATH_SCRIPT_JS, SOURCE_PATH_SCRIPT_JS, SCRIPT_JS, SCRIPT_BASH
+from .const import (
+    DOMAIN,
+    DEST_PATH_SCRIPT_JS,
+    SOURCE_PATH_SCRIPT_JS,
+    SCRIPT_JS,
+)
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
@@ -76,9 +80,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             require_admin=True,
         )
     )
-
-    if not is_script_running(SCRIPT_BASH):
-        start_script(SCRIPT_BASH)
 
     return True
 

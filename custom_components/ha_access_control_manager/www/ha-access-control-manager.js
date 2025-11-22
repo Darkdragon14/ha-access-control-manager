@@ -22,7 +22,8 @@ class AccessControlManager extends LitElement {
             newGroupName: { type: String },
             openCreateGroup: { type: Boolean },
             searchTerm: { type: String },
-            _isLoading: { type: Boolean }
+            _isLoading: { type: Boolean },
+            _isSaving: { type: Boolean }
         };
     }
 
@@ -43,6 +44,7 @@ class AccessControlManager extends LitElement {
         this.expandedDevices = new Set();
         this.searchTerm = '';
         this._isLoading = false;
+        this._isSaving = false;
         this.searchTimeout = null;
     }
 
@@ -301,6 +303,9 @@ class AccessControlManager extends LitElement {
     }
 
     save() {
+        if (this._isSaving) {
+            return;
+        }
         if (!this.isAnUser) {
             if (!this.selected.policy) {
                 this.selected.policy = {
@@ -324,9 +329,23 @@ class AccessControlManager extends LitElement {
                 });
             });
         }
-        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: this.selected }).then(data => {
-            this.loadAuths(data);
-        })
+        this._isSaving = true;
+        this.requestUpdate();
+        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: this.selected })
+            .then(data => {
+                this.loadAuths(data);
+            })
+            .finally(() => {
+                this._isSaving = false;
+                this.requestUpdate();
+            });
+    }
+
+    restart() {
+        if (!this.hass) {
+            return;
+        }
+        this.hass.callService('homeassistant', 'restart');
     }
 
     updateCheckbox(deviceId, field, newState) {
@@ -437,8 +456,17 @@ class AccessControlManager extends LitElement {
 
                             <ha-button
                                 @click=${this.save}
+                                .disabled=${this._isSaving}
                             >
                                 ${this.translate("save")}
+                            </ha-button>
+                            <ha-button
+                                class="restart-button"
+                                variant="danger"
+                                @click=${this.restart}
+                                .disabled=${this._isSaving}
+                            >
+                                ${this.translate("restart")}
                             </ha-button>
 
                             <ha-textfield
@@ -476,14 +504,23 @@ class AccessControlManager extends LitElement {
                             })}
                             <div class="new-group-input">
                                 <ha-button
-                                    @click=${(e) => this.openCreateGroup = true}
+                                    @click=${() => this.openCreateGroup = true}
                                 >
                                     ${this.translate("create_new_group")}
                                 </ha-button>
                                 <ha-button
-                                    @click="${this.save}"
+                                    @click=${this.save}
+                                    .disabled=${this._isSaving}
                                 >
                                     ${this.translate("save")}
+                                </ha-button>
+                                <ha-button
+                                    class="restart-button"
+                                    variant="danger"
+                                    @click=${this.restart}
+                                    .disabled=${this._isSaving}
+                                >
+                                    ${this.translate("restart")}
                                 </ha-button>
                                 <ha-dialog 
                                     .open=${this.openCreateGroup}
@@ -624,9 +661,18 @@ class AccessControlManager extends LitElement {
 
                         <div class="card-footer">
                             <ha-button
-                                @click="${this.save}"
+                                @click=${this.save}
+                                .disabled=${this._isSaving}
                             >
                                 ${this.translate("save")}
+                            </ha-button>
+                            <ha-button
+                                class="restart-button"
+                                variant="danger"
+                                @click=${this.restart}
+                                .disabled=${this._isSaving}
+                            >
+                                ${this.translate("restart")}
                             </ha-button>
                         </div>
                     </ha-card>`

@@ -51,18 +51,5 @@ async def save_auths(hass: HomeAssistant, auth_data: dict, msg: dict[str, Any]) 
 
     await save_json_file(new_file_path, auth_data)
 
-    # Validation logic
-    valid_config = True
-    for group in auth_data.get("data", {}).get("groups", []):
-        if group.get("id", "").startswith("custom-group-"):
-            if not group.get("policy") or not group.get("policy", {}).get("entities", {}).get("entity_ids"):
-                valid_config = False
-                break
-
-    valid_file_path = hass.config.path(".storage/auth.valid")
-    if valid_config:
-        with open(valid_file_path, "w") as f:
-            pass  # Create empty file
-    else:
-        if os.path.exists(valid_file_path):
-            os.remove(valid_file_path)
+    auth_path = hass.config.path(AUTH_PATH)
+    os.replace(new_file_path, auth_path)
