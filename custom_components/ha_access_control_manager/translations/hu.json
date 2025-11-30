@@ -35,6 +35,15 @@
             "restart": {
                 "name": "Újraindítás"
             },
+            "confirm_restart_title": {
+                "name": "Újraindítás megerősítése"
+            },
+            "confirm_restart_description": {
+                "name": "Biztosan újra szeretnéd indítani a Home Assistantot?"
+            },
+            "confirm": {
+                "name": "Megerősítés"
+            },
             "create_new_group": {
                 "name": "Új csoport létrehozása"
             },
