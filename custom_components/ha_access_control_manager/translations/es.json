@@ -35,6 +35,15 @@
             "restart": {
                 "name": "Reiniciar"
             },
+            "confirm_restart_title": {
+                "name": "Confirmar reinicio"
+            },
+            "confirm_restart_description": {
+                "name": "¿Está seguro de que desea reiniciar Home Assistant?"
+            },
+            "confirm": {
+                "name": "Confirmar"
+            },
             "create_new_group": {
                 "name": "Crear un nuevo grupo"
             },

@@ -23,7 +23,8 @@ class AccessControlManager extends LitElement {
             openCreateGroup: { type: Boolean },
             searchTerm: { type: String },
             _isLoading: { type: Boolean },
-            _isSaving: { type: Boolean }
+            _isSaving: { type: Boolean },
+            restartDialogOpen: { type: Boolean }
         };
     }
 
@@ -46,6 +47,7 @@ class AccessControlManager extends LitElement {
         this._isLoading = false;
         this._isSaving = false;
         this.searchTimeout = null;
+        this.restartDialogOpen = false;
     }
 
     translate(key) {
@@ -342,10 +344,19 @@ class AccessControlManager extends LitElement {
     }
 
     restart() {
+        this.restartDialogOpen = true;
+    }
+
+    closeRestartDialog() {
+        this.restartDialogOpen = false;
+    }
+
+    confirmRestart() {
         if (!this.hass) {
             return;
         }
         this.hass.callService('homeassistant', 'restart');
+        this.restartDialogOpen = false;
     }
 
     updateCheckbox(deviceId, field, newState) {
@@ -679,6 +690,26 @@ class AccessControlManager extends LitElement {
                 }
             </div>
         </div>
+        <ha-dialog
+            .open=${this.restartDialogOpen}
+            heading="${this.translate("confirm_restart_title")}"
+            @closed=${this.closeRestartDialog}
+        >
+            <p>${this.translate("confirm_restart_description")}</p>
+            <ha-button
+                variant="danger"
+                slot="primaryAction"
+                @click=${this.confirmRestart}
+            >
+                ${this.translate("confirm")}
+            </ha-button>
+            <ha-button
+                slot="secondaryAction"
+                @click=${this.closeRestartDialog}
+            >
+                ${this.translate("cancel")}
+            </ha-button>
+        </ha-dialog>
         `
     }
 
