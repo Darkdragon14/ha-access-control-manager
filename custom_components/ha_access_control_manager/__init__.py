@@ -69,6 +69,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     if path.startswith("/"):
         path = path[1:]
 
+
+    panels = hass.data.get("frontend_panels", {})
+    if path in panels:
+        hass.components.frontend.async_remove_panel(path)
+
     hass.async_create_task(
         async_register_panel(
             hass,
@@ -86,14 +91,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Unload a config entry."""
-    path = config_entry.options.get("path", config_entry.data.get("path", "/ha-access-control-manager"))
+    path = config_entry.options.get("path", config_entry.data.get("path_to_admin_ui", "/ha-access-control-manager"))
     if path.startswith("/"):
         path = path[1:]
 
 
-    path = "ha_access_control_manager"
-    
-    path = "ha_access_control_manager"
     panels = hass.data.get("frontend_panels", {})
     if path in panels:
         hass.components.frontend.async_remove_panel(path)
