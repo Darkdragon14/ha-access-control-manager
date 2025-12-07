@@ -1,7 +1,6 @@
 import os
 import aiofiles
 import json
-import logging
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
@@ -24,8 +23,6 @@ from .const import (
 )
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
-
-_LOGGER = logging.getLogger(__name__)
 
 def get_version():
     manifest_path = Path(__file__).parent / "manifest.json"
@@ -73,20 +70,21 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         path = path[1:]
 
 
-    if path in hass.data.get("frontend_panels", {}):
-        _LOGGER.debug("Panel %s already exists, skipping registration", path)
-    else:
-        hass.async_create_task(
-            async_register_panel(
-                hass,
-                frontend_url_path=path,
-                webcomponent_name="access-control-manager",
-                module_url=f"/local/community/ha-access-control-manager/ha-access-control-manager.js?v={VERSION}",
-                sidebar_title=tab_name,
-                sidebar_icon=tab_icon,
-                require_admin=True,
-            )
+    panels = hass.data.get("frontend_panels", {})
+    if path in panels:
+        hass.components.frontend.async_remove_panel(path)
+
+    hass.async_create_task(
+        async_register_panel(
+            hass,
+            frontend_url_path=path,
+            webcomponent_name="access-control-manager",
+            module_url=f"/local/community/ha-access-control-manager/ha-access-control-manager.js?v={VERSION}",
+            sidebar_title=tab_name,
+            sidebar_icon=tab_icon,
+            require_admin=True,
         )
+    )
 
     return True
 
@@ -98,7 +96,8 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         path = path[1:]
 
 
-    if path in hass.data.get("frontend_panels", {}):
+    panels = hass.data.get("frontend_panels", {})
+    if path in panels:
         hass.components.frontend.async_remove_panel(path)
     return True
 
