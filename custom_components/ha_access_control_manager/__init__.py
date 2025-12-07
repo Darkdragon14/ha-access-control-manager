@@ -69,33 +69,33 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     if path.startswith("/"):
         path = path[1:]
 
-    hass.async_create_task(
-        async_register_panel(
-            hass,
-            frontend_url_path=path,
-            webcomponent_name="access-control-manager",
-            module_url=f"/local/community/ha-access-control-manager/ha-access-control-manager.js?v={VERSION}",
-            sidebar_title=tab_name,
-            sidebar_icon=tab_icon,
-            require_admin=True,
+
+    if path in hass.data.get("frontend_panels", {}):
+        _LOGGER.debug("Panel %s already exists, skipping registration", path)
+    else:
+        hass.async_create_task(
+            async_register_panel(
+                hass,
+                frontend_url_path=path,
+                webcomponent_name="access-control-manager",
+                module_url=f"/local/community/ha-access-control-manager/ha-access-control-manager.js?v={VERSION}",
+                sidebar_title=tab_name,
+                sidebar_icon=tab_icon,
+                require_admin=True,
+            )
         )
-    )
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Unload a config entry."""
-    path = config_entry.options.get("path", config_entry.data.get("path", "/ha-access-control-manager"))
+    path = config_entry.options.get("path", config_entry.data.get("path_to_admin_ui", "/ha-access-control-manager"))
     if path.startswith("/"):
         path = path[1:]
 
 
-    path = "ha_access_control_manager"
-    
-    path = "ha_access_control_manager"
-    panels = hass.data.get("frontend_panels", {})
-    if path in panels:
+    if path in hass.data.get("frontend_panels", {}):
         hass.components.frontend.async_remove_panel(path)
     return True
 
