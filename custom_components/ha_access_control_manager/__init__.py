@@ -1,6 +1,7 @@
 import os
 import aiofiles
 import json
+import logging
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
@@ -23,6 +24,8 @@ from .const import (
 )
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+
+_LOGGER = logging.getLogger(__name__)
 
 def get_version():
     manifest_path = Path(__file__).parent / "manifest.json"
