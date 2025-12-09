@@ -82,6 +82,12 @@
             },
             "custom_group_warning": {
                 "name": "Achtung, Sie haben eine benutzerdefinierte Gruppe ohne deklarierte Richtlinien. Bitte legen Sie mindestens eine Richtlinie fest, bevor Sie Home Assistant neu starten"
+            },
+            "helper_permissions": {
+                "name": "Helfer-Berechtigungen"
+            },
+            "helpers_not_found": {
+                "name": "Keine Helfer gefunden"
             }
         }
     }

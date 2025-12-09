@@ -82,6 +82,12 @@
             },
             "custom_group_warning": {
                 "name": "Warning, you have a custom group with no declared policies. Please set at least one policy before restarting Home Assistant"
+            },
+            "helper_permissions": {
+                "name": "Helper permissions"
+            },
+            "helpers_not_found": {
+                "name": "No helpers found"
             }
         }
     }

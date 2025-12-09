@@ -82,6 +82,12 @@
             },
             "custom_group_warning": {
                 "name": "Atención, tiene un grupo personalizado sin políticas declaradas. Por favor, establezca al menos una política antes de reiniciar Home Assistant"
+            },
+            "helper_permissions": {
+                "name": "Permisos de helpers"
+            },
+            "helpers_not_found": {
+                "name": "No se encontraron helpers"
             }
         }
     }

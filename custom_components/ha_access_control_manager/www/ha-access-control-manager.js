@@ -14,6 +14,8 @@ class AccessControlManager extends LitElement {
             users: { type: Array },
             tableHeaders: { type: Array },
             tableData: { type: Array },
+            helperTableHeaders: { type: Array },
+            helperTableData: { type: Array },
             dataUsers: { type: Array },
             dataGroups: { type: Array },
             isAnUser: { type: Boolean },
@@ -33,7 +35,9 @@ class AccessControlManager extends LitElement {
         this.users = [];
         this.tableHeaders = ["name", "read", "write"];
         this.tableHeadersEntities = ["name", "entity_id", "read", "write"];
+        this.helperTableHeaders = ["name", "entity_id", "read", "write"];
         this.tableData = [];
+        this.helperTableData = [];
         this.dataUsers = [];
         this.dataGroups = [];
         this.isAnUser = false;
@@ -59,6 +63,7 @@ class AccessControlManager extends LitElement {
             this.fetchUsers();
             this.fetchAuths();
             this.fetchDevices();
+            this.fetchHelpers();
             this.needToFetch = false;
         }
         super.update(changedProperties);
@@ -82,6 +87,20 @@ class AccessControlManager extends LitElement {
                 });
             })
             // this.requestUpdate();
+        });
+    }
+
+    fetchHelpers() {
+        this.hass.callWS({ type: 'ha_access_control/list_helpers' }).then(helpers => {
+            this.helperTableData = helpers.map(helper => ({
+                ...helper,
+                read: false,
+                write: false
+            }));
+
+            if (this.selected && !this.isAnUser && this.selected.id) {
+                this.loadData(this.selected);
+            }
         });
     }
 
@@ -180,6 +199,25 @@ class AccessControlManager extends LitElement {
             device.write = entityWrites.every(val => val === true) ? true : entityWrites.some(val => val === true) ? "indeterminate" : false;
 
         });
+        this.helperTableData = this.helperTableData.map(helper => {
+            if (allTrueRW) {
+                return { ...helper, read: true, write: true };
+            }
+
+            if (allTrueRead) {
+                return { ...helper, read: true, write: false };
+            }
+
+            if (data.policy?.entities?.entity_ids[helper.entity_id]) {
+                const helperPolicy = data.policy.entities.entity_ids[helper.entity_id];
+                const read = helperPolicy ? true : false;
+                const write = helperPolicy && typeof helperPolicy !== 'object' ? true : false;
+                return { ...helper, read, write };
+            }
+
+            return { ...helper, read: false, write: false };
+        });
+
         this.tableData = [...this.tableData];
         this.requestUpdate();
     }
@@ -304,6 +342,37 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    getHelperSelectAllState(field) {
+        if (!this.helperTableData || this.helperTableData.length === 0) {
+            return false;
+        }
+        const states = this.helperTableData.map(item => item[field]);
+        const allChecked = states.every(val => val === true);
+        if (allChecked) return true;
+        const someChecked = states.some(val => val === true);
+        if (someChecked) return 'indeterminate';
+        return false;
+    }
+
+    handleHelperSelectAll(field, event) {
+        const isChecked = event.target.checked;
+        this.helperTableData = this.helperTableData.map(helper => ({
+            ...helper,
+            [field]: isChecked
+        }));
+        this.requestUpdate();
+    }
+
+    updateHelperCheckbox(entityId, field, newState) {
+        this.helperTableData = this.helperTableData.map(helper => {
+            if (helper.entity_id !== entityId) {
+                return helper;
+            }
+            return { ...helper, [field]: newState };
+        });
+        this.requestUpdate();
+    }
+
     save() {
         if (this._isSaving) {
             return;
@@ -329,6 +398,17 @@ class AccessControlManager extends LitElement {
                         delete this.selected.policy.entities.entity_ids[entity.entity_id];
                     }
                 });
+            });
+            this.helperTableData.forEach(helper => {
+                if (helper.read && helper.write) {
+                    this.selected.policy.entities.entity_ids[helper.entity_id] = true;
+                } else if (helper.read) {
+                    this.selected.policy.entities.entity_ids[helper.entity_id] = {
+                        read: true
+                    };
+                } else {
+                    delete this.selected.policy.entities.entity_ids[helper.entity_id];
+                }
             });
         }
         this._isSaving = true;
@@ -688,6 +768,69 @@ class AccessControlManager extends LitElement {
                         </div>
                     </ha-card>`
                 }
+                ${!this.isAnUser ? html`
+                    <ha-card class="helpers-card" header="${this.translate("helper_permissions")} ${this.selected?.name ? `- ${this.selected.name}` : ''}">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        ${this.helperTableHeaders.map((header) => {
+                                            if (header === 'read' || header === 'write') {
+                                                const state = this.getHelperSelectAllState(header);
+                                                return html`<th>
+                                                    <mwc-checkbox 
+                                                        .checked=${state === true}
+                                                        .indeterminate=${state === 'indeterminate'}
+                                                        @change=${(e) => this.handleHelperSelectAll(header, e)}
+                                                        style="vertical-align: middle; margin-right: 4px;">
+                                                    </mwc-checkbox>
+                                                    <span style="vertical-align: middle;">${this.translate(header)}</span>
+                                                </th>`
+                                            }
+                                            return html`<th>${this.translate(header)}</th>`;
+                                        })}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${this.helperTableData.length ? this.helperTableData.map(helper => html`
+                                        <tr>
+                                            <td>${helper.name === 'Unknown' ? helper.entity_id : helper.name}</td>
+                                            <td>${helper.entity_id}</td>
+                                            <td>
+                                                <mwc-checkbox
+                                                    .checked="${helper.read}"
+                                                    @change="${(e) => this.updateHelperCheckbox(helper.entity_id, 'read', e.target.checked)}"
+                                                ></mwc-checkbox>
+                                            </td>
+                                            <td>
+                                                <mwc-checkbox
+                                                    .checked="${helper.write}"
+                                                    @change="${(e) => this.updateHelperCheckbox(helper.entity_id, 'write', e.target.checked)}"
+                                                ></mwc-checkbox>
+                                            </td>
+                                        </tr>
+                                    `) : html`<tr><td colspan="4">${this.translate("helpers_not_found")}</td></tr>`}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-footer">
+                            <ha-button
+                                @click=${this.save}
+                                .disabled=${this._isSaving}
+                            >
+                                ${this.translate("save")}
+                            </ha-button>
+                            <ha-button
+                                class="restart-button"
+                                variant="danger"
+                                @click=${this.restart}
+                                .disabled=${this._isSaving}
+                            >
+                                ${this.translate("restart")}
+                            </ha-button>
+                        </div>
+                    </ha-card>
+                ` : null}
             </div>
         </div>
         <ha-dialog
@@ -822,7 +965,8 @@ class AccessControlManager extends LitElement {
             }
 
             .group-card,
-            .entites-cards {
+            .entites-cards,
+            .helpers-card {
                 margin: 10px;
             }
             
