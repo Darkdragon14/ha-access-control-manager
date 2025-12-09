@@ -26,7 +26,9 @@ class AccessControlManager extends LitElement {
             searchTerm: { type: String },
             _isLoading: { type: Boolean },
             _isSaving: { type: Boolean },
-            restartDialogOpen: { type: Boolean }
+            restartDialogOpen: { type: Boolean },
+            devicesCollapsed: { type: Boolean },
+            helpersCollapsed: { type: Boolean }
         };
     }
 
@@ -52,6 +54,8 @@ class AccessControlManager extends LitElement {
         this._isSaving = false;
         this.searchTimeout = null;
         this.restartDialogOpen = false;
+        this.devicesCollapsed = false;
+        this.helpersCollapsed = false;
     }
 
     translate(key) {
@@ -501,6 +505,16 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    toggleDevicesCard() {
+        this.devicesCollapsed = !this.devicesCollapsed;
+        this.requestUpdate();
+    }
+
+    toggleHelpersCard() {
+        this.helpersCollapsed = !this.helpersCollapsed;
+        this.requestUpdate();
+    }
+
     render() {
         return html`
         <div>
@@ -648,187 +662,203 @@ class AccessControlManager extends LitElement {
                         </div>
                     </ha-card>`
                 : html`
-                    <ha-card class="entites-cards" header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
-                        <div class="table-wrapper">
-                            ${this._isLoading ? html`                            
-                                <div class="spinner-container">
-                                    <div class="spinner"></div>
-                                </div>
-                            ` : html`
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th></th>
-                                            ${this.tableHeaders.map(
-                                                (header) => {
-                                                    if (header === 'read' || header === 'write') {
-                                                        const state = this.getSelectAllState(header);
-                                                        return html`<th>
-                                                            <mwc-checkbox 
-                                                                .checked=${state === true}
-                                                                .indeterminate=${state === 'indeterminate'}
-                                                                @change=${(e) => this.handleSelectAll(header, e)}
-                                                                style="vertical-align: middle; margin-right: 4px;">
-                                                            </mwc-checkbox>
-                                                            <span style="vertical-align: middle;">${this.translate(header)}</span>
-                                                        </th>`
-                                                    }
-                                                    return html`<th>${this.translate(header)}</th>`
-                                                }
-                                            )}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${this.processedTableData.map(
-                                        (item) => html`
+                    <ha-card
+                        class="entites-cards collapsible-card"
+                        header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
+                    >
+                        <div class="card-toggle-icon" @click=${this.toggleDevicesCard}>
+                            <ha-icon icon="${this.devicesCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                        </div>
+                        ${this.devicesCollapsed ? null : html`
+                            <div class="table-wrapper">
+                                ${this._isLoading ? html`                            
+                                    <div class="spinner-container">
+                                        <div class="spinner"></div>
+                                    </div>
+                                ` : html`
+                                    <table>
+                                        <thead>
                                             <tr>
-                                                <td>
-                                                    <ha-button
-                                                        @click=${() => this.toggleEntities(item.id)}
-                                                        appearance="plain"
-                                                    >
-                                                        ${item.isExpanded ? "-" : "+"}
-                                                    </ha-button>
-                                                </td>
-                                                <td>${item[this.tableHeaders[0]]}</td>
-                                                <td>
-                                                    <mwc-checkbox
-                                                        .checked="${item.read === true}"
-                                                        .indeterminate="${item.read === 'indeterminate'}"
-                                                        @change="${(e) => this.updateCheckbox(item.id, 'read', e.target.checked)}"
-                                                    >
-                                                </td>
-                                                <td>
-                                                    <mwc-checkbox
-                                                        .checked="${item.write === true}"
-                                                        .indeterminate="${item.write === 'indeterminate'}"
-                                                        @change="${(e) => this.updateCheckbox(item.id, 'write', e.target.checked)}"
-                                                    >
-                                                    </mwc-checkbox>
-                                                </td>
-                                            </tr>
-                                            ${item.isExpanded ? html`
-                                                <tr>
-                                                    <td colspan="4">
-                                                    <table>
-                                                        <thead>
-                                                        <tr>
-                                                            ${this.tableHeadersEntities.map(
-                                                                (header) => html`<th>${this.translate(header)}</th>`
-                                                            )}
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                        ${item.displayEntities.length > 0 ? item.displayEntities.map((entity) => html`
-                                                            <tr>
-                                                            <td>${entity.name === 'Unknown' ?  entity.original_name : entity.name}</td>
-                                                            <td>${entity[this.tableHeadersEntities[1]]}</td>
-                                                            <td>
-                                                                <mwc-checkbox
-                                                                    .checked="${entity.read}"
-                                                                    @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'read', e.target.checked)}"
-                                                                >
-                                                            </td>
-                                                            <td>
-                                                                <mwc-checkbox
-                                                                    .checked="${entity.write}"
-                                                                    @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'write', e.target.checked)}"
-                                                                >
+                                                <th></th>
+                                                ${this.tableHeaders.map(
+                                                    (header) => {
+                                                        if (header === 'read' || header === 'write') {
+                                                            const state = this.getSelectAllState(header);
+                                                            return html`<th>
+                                                                <mwc-checkbox 
+                                                                    .checked=${state === true}
+                                                                    .indeterminate=${state === 'indeterminate'}
+                                                                    @change=${(e) => this.handleSelectAll(header, e)}
+                                                                    style="vertical-align: middle; margin-right: 4px;">
                                                                 </mwc-checkbox>
-                                                            </td>
-                                                            </tr>
-                                                        `) : html`<tr><td colspan="3">${this.translate("entites_not_found")}</td></tr>`}
-                                                        </tbody>
-                                                    </table>
+                                                                <span style="vertical-align: middle;">${this.translate(header)}</span>
+                                                            </th>`
+                                                        }
+                                                        return html`<th>${this.translate(header)}</th>`
+                                                    }
+                                                )}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${this.processedTableData.map(
+                                            (item) => html`
+                                                <tr>
+                                                    <td>
+                                                        <ha-button
+                                                            @click=${() => this.toggleEntities(item.id)}
+                                                            appearance="plain"
+                                                        >
+                                                            ${item.isExpanded ? "-" : "+"}
+                                                        </ha-button>
+                                                    </td>
+                                                    <td>${item[this.tableHeaders[0]]}</td>
+                                                    <td>
+                                                        <mwc-checkbox
+                                                            .checked="${item.read === true}"
+                                                            .indeterminate="${item.read === 'indeterminate'}"
+                                                            @change="${(e) => this.updateCheckbox(item.id, 'read', e.target.checked)}"
+                                                        >
+                                                    </td>
+                                                    <td>
+                                                        <mwc-checkbox
+                                                            .checked="${item.write === true}"
+                                                            .indeterminate="${item.write === 'indeterminate'}"
+                                                            @change="${(e) => this.updateCheckbox(item.id, 'write', e.target.checked)}"
+                                                        >
+                                                        </mwc-checkbox>
                                                     </td>
                                                 </tr>
-                                                ` : ''}
-                                        `
-                                        )}
-                                    </tbody>
-                                </table>
-                            `}
-                        </div>
+                                                ${item.isExpanded ? html`
+                                                    <tr>
+                                                        <td colspan="4">
+                                                        <table>
+                                                            <thead>
+                                                            <tr>
+                                                                ${this.tableHeadersEntities.map(
+                                                                    (header) => html`<th>${this.translate(header)}</th>`
+                                                                )}
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            ${item.displayEntities.length > 0 ? item.displayEntities.map((entity) => html`
+                                                                <tr>
+                                                                <td>${entity.name === 'Unknown' ?  entity.original_name : entity.name}</td>
+                                                                <td>${entity[this.tableHeadersEntities[1]]}</td>
+                                                                <td>
+                                                                    <mwc-checkbox
+                                                                        .checked="${entity.read}"
+                                                                        @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'read', e.target.checked)}"
+                                                                    >
+                                                                </td>
+                                                                <td>
+                                                                    <mwc-checkbox
+                                                                        .checked="${entity.write}"
+                                                                        @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'write', e.target.checked)}"
+                                                                    >
+                                                                    </mwc-checkbox>
+                                                                </td>
+                                                                </tr>
+                                                            `) : html`<tr><td colspan="3">${this.translate("entites_not_found")}</td></tr>`}
+                                                            </tbody>
+                                                        </table>
+                                                        </td>
+                                                    </tr>
+                                                    ` : ''}
+                                            `
+                                            )}
+                                        </tbody>
+                                    </table>
+                                `}
+                            </div>
 
-                        <div class="card-footer">
-                            <ha-button
-                                @click=${this.save}
-                                .disabled=${this._isSaving}
-                            >
-                                ${this.translate("save")}
-                            </ha-button>
-                            <ha-button
-                                class="restart-button"
-                                variant="danger"
-                                @click=${this.restart}
-                                .disabled=${this._isSaving}
-                            >
-                                ${this.translate("restart")}
-                            </ha-button>
-                        </div>
+                            <div class="card-footer">
+                                <ha-button
+                                    @click=${this.save}
+                                    .disabled=${this._isSaving}
+                                >
+                                    ${this.translate("save")}
+                                </ha-button>
+                                <ha-button
+                                    class="restart-button"
+                                    variant="danger"
+                                    @click=${this.restart}
+                                    .disabled=${this._isSaving}
+                                >
+                                    ${this.translate("restart")}
+                                </ha-button>
+                            </div>
+                        `}
                     </ha-card>`
                 }
                 ${!this.isAnUser ? html`
-                    <ha-card class="helpers-card" header="${this.translate("helper_permissions")} ${this.selected?.name ? `- ${this.selected.name}` : ''}">
-                        <div class="table-wrapper">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        ${this.helperTableHeaders.map((header) => {
-                                            if (header === 'read' || header === 'write') {
-                                                const state = this.getHelperSelectAllState(header);
-                                                return html`<th>
-                                                    <mwc-checkbox 
-                                                        .checked=${state === true}
-                                                        .indeterminate=${state === 'indeterminate'}
-                                                        @change=${(e) => this.handleHelperSelectAll(header, e)}
-                                                        style="vertical-align: middle; margin-right: 4px;">
-                                                    </mwc-checkbox>
-                                                    <span style="vertical-align: middle;">${this.translate(header)}</span>
-                                                </th>`
-                                            }
-                                            return html`<th>${this.translate(header)}</th>`;
-                                        })}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${this.helperTableData.length ? this.helperTableData.map(helper => html`
+                    <ha-card
+                        class="helpers-card collapsible-card"
+                        header="${this.translate("helper_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
+                    >
+                        <div class="card-toggle-icon" @click=${this.toggleHelpersCard}>
+                            <ha-icon icon="${this.helpersCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                        </div>
+                        ${this.helpersCollapsed ? null : html`
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
                                         <tr>
-                                            <td>${helper.name === 'Unknown' ? helper.entity_id : helper.name}</td>
-                                            <td>${helper.entity_id}</td>
-                                            <td>
-                                                <mwc-checkbox
-                                                    .checked="${helper.read}"
-                                                    @change="${(e) => this.updateHelperCheckbox(helper.entity_id, 'read', e.target.checked)}"
-                                                ></mwc-checkbox>
-                                            </td>
-                                            <td>
-                                                <mwc-checkbox
-                                                    .checked="${helper.write}"
-                                                    @change="${(e) => this.updateHelperCheckbox(helper.entity_id, 'write', e.target.checked)}"
-                                                ></mwc-checkbox>
-                                            </td>
+                                            ${this.helperTableHeaders.map((header) => {
+                                                if (header === 'read' || header === 'write') {
+                                                    const state = this.getHelperSelectAllState(header);
+                                                    return html`<th>
+                                                        <mwc-checkbox 
+                                                            .checked=${state === true}
+                                                            .indeterminate=${state === 'indeterminate'}
+                                                            @change=${(e) => this.handleHelperSelectAll(header, e)}
+                                                            style="vertical-align: middle; margin-right: 4px;">
+                                                        </mwc-checkbox>
+                                                        <span style="vertical-align: middle;">${this.translate(header)}</span>
+                                                    </th>`
+                                                }
+                                                return html`<th>${this.translate(header)}</th>`;
+                                            })}
                                         </tr>
-                                    `) : html`<tr><td colspan="4">${this.translate("helpers_not_found")}</td></tr>`}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="card-footer">
-                            <ha-button
-                                @click=${this.save}
-                                .disabled=${this._isSaving}
-                            >
-                                ${this.translate("save")}
-                            </ha-button>
-                            <ha-button
-                                class="restart-button"
-                                variant="danger"
-                                @click=${this.restart}
-                                .disabled=${this._isSaving}
-                            >
-                                ${this.translate("restart")}
-                            </ha-button>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        ${this.helperTableData.length ? this.helperTableData.map(helper => html`
+                                            <tr>
+                                                <td>${helper.name === 'Unknown' ? helper.entity_id : helper.name}</td>
+                                                <td>${helper.entity_id}</td>
+                                                <td>
+                                                    <mwc-checkbox
+                                                        .checked="${helper.read}"
+                                                        @change="${(e) => this.updateHelperCheckbox(helper.entity_id, 'read', e.target.checked)}"
+                                                    ></mwc-checkbox>
+                                                </td>
+                                                <td>
+                                                    <mwc-checkbox
+                                                        .checked="${helper.write}"
+                                                        @change="${(e) => this.updateHelperCheckbox(helper.entity_id, 'write', e.target.checked)}"
+                                                    ></mwc-checkbox>
+                                                </td>
+                                            </tr>
+                                        `) : html`<tr><td colspan="4">${this.translate("helpers_not_found")}</td></tr>`}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="card-footer">
+                                <ha-button
+                                    @click=${this.save}
+                                    .disabled=${this._isSaving}
+                                >
+                                    ${this.translate("save")}
+                                </ha-button>
+                                <ha-button
+                                    class="restart-button"
+                                    variant="danger"
+                                    @click=${this.restart}
+                                    .disabled=${this._isSaving}
+                                >
+                                    ${this.translate("restart")}
+                                </ha-button>
+                            </div>
+                        `}
                     </ha-card>
                 ` : null}
             </div>
@@ -1019,6 +1049,24 @@ class AccessControlManager extends LitElement {
             .table-wrapper {
                 overflow-x: auto;
                 padding: 16px;
+            }
+
+            .collapsible-card {
+                position: relative;
+            }
+
+            .card-toggle-icon {
+                position: absolute;
+                top: 16px;
+                right: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+            }
+
+            .card-toggle-icon ha-icon {
+                --mdc-icon-size: 24px;
             }
 
             table {

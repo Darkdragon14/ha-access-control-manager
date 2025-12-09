@@ -83,8 +83,8 @@
             "custom_group_warning": {
                 "name": "Figyelem, van egy egyedi csoportod, aminek nincsenek szabályai. Kérlek, adj hozzá legalább egy szabályt, mielőtt újraindítod a Home Assistant-ot."
             },
-            "helper_permissions": {
-                "name": "Segédek engedélyei"
+            "helper_permissions_for": {
+                "name": "Segédek engedélyei ehhez"
             },
             "helpers_not_found": {
                 "name": "Nem található segéd"
