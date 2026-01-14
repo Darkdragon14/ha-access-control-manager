@@ -18,6 +18,8 @@ class AccessControlManager extends LitElement {
             dataGroups: { type: Array },
             isAnUser: { type: Boolean },
             selected: { type: Object },
+            selectedUserId: { type: String },
+            selectedGroupId: { type: String },
             needToSetPermissions: { type: Boolean },
             newGroupName: { type: String },
             openCreateGroup: { type: Boolean },
@@ -39,6 +41,8 @@ class AccessControlManager extends LitElement {
         this.isAnUser = false;
         this.needToFetch = true;
         this.selected = {};
+        this.selectedUserId = "";
+        this.selectedGroupId = "";
         this.needToSetPermissions = false;
         this.newGroupName = '';
         this.openCreateGroup = false;
@@ -125,18 +129,51 @@ class AccessControlManager extends LitElement {
     }
 
     changeUser(e) {
-        const userId = e.detail.value;
+        const userId = e.detail.value?.[this.translate("user")];
+        if (!userId) {
+            this.resetSelection();
+            return;
+        }
         const user = this.dataUsers.find(user => user.id === userId);
+        if (!user) {
+            return;
+        }
         this.selected = user;
+        this.selectedUserId = userId;
         this.isAnUser = true;
     }
 
     changeGroup(e) {
-        const groupId = e.detail.value;
+        const groupId = e.detail.value?.[this.translate("group")];
+        if (!groupId) {
+            this.resetSelection();
+            return;
+        }
         const group = this.dataGroups.find(group => group.id === groupId);
+        if (!group) {
+            return;
+        }
         this.selected = group;
+        this.selectedGroupId = groupId;
         this.isAnUser = false;
         this.loadData(group);
+    }
+
+    resetSelection() {
+        this.selected = {};
+        this.selectedUserId = "";
+        this.selectedGroupId = "";
+        this.isAnUser = false;
+        this.tableData.forEach(device => {
+            device.read = false;
+            device.write = false;
+            device.entities.forEach(entity => {
+                entity.read = false;
+                entity.write = false;
+            });
+        });
+        this.tableData = [...this.tableData];
+        this.requestUpdate();
     }
 
     loadData(data) {
@@ -448,22 +485,42 @@ class AccessControlManager extends LitElement {
                 <ha-card>
                     <div class="card-content">
                         <div class="filters">
-                            <ha-combo-box
-                            .items=${this.users}
-                            .itemLabelPath=${'username'}
-                            .itemValuePath=${'id'}
-                            .label=${this.translate("user")}
-                            @value-changed=${this.changeUser}
-                            >
-                            </ha-combo-box>
-                            <ha-combo-box
-                            .items=${this.dataGroups}
-                            .itemLabelPath=${'name'}
-                            .itemValuePath=${'id'}
-                            .label=${this.translate("group")}
-                            @value-changed=${this.changeGroup}
-                            >
-                            </ha-combo-box>
+                            <ha-form
+                                .hass=${this.hass}
+                                .schema=${[
+                                    {
+                                        name: this.translate("user"),
+                                        selector: {
+                                            select: {
+                                                mode: "dropdown",
+                                                options: this.users.map(user => ({
+                                                    label: user.username,
+                                                    value: user.id
+                                                })),
+                                            },
+                                        },
+                                    },
+                                ]}
+                                @value-changed=${this.changeUser}
+                            ></ha-form>
+                            <ha-form
+                                .hass=${this.hass}
+                                .schema=${[
+                                    {
+                                        name: this.translate("group"),
+                                        selector: {
+                                            select: {
+                                                mode: "dropdown",
+                                                options: this.dataGroups.map(group => ({
+                                                    value: group.id,
+                                                    label: group.name
+                                                }))
+                                            },
+                                        },
+                                    },
+                                ]}
+                                @value-changed=${this.changeGroup}
+                            ></ha-form>
 
                             <ha-button
                                 @click=${this.save}
@@ -805,9 +862,9 @@ class AccessControlManager extends LitElement {
             .filters > * {
                 margin-right: 8px;
             }
-            ha-combo-box {
+            ha-form {
                 padding: 8px 0;
-                width: auto;
+                min-width: 200px;
             }
             input[type="checkbox"] {
                 margin-right: 10px;
