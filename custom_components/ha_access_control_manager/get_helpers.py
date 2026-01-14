@@ -8,6 +8,11 @@ from homeassistant.helpers import entity_registry as er
 
 HELPER_DOMAINS = {
     "schedule",
+    "timer",
+    "counter",
+    "todo",
+    "calendar",
+    "template",
 }
 INPUT_DOMAIN_PREFIX = "input_"
 LIGHT_GROUP_PLATFORM = "group"
