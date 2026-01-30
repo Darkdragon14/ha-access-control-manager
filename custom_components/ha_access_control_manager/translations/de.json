@@ -86,6 +86,9 @@
             "helper_permissions_for": {
                 "name": "Helfer-Berechtigungen für"
             },
+            "entities_without_devices_permissions_for": {
+                "name": "Entitätsberechtigungen ohne Geräte für"
+            },
             "helpers_not_found": {
                 "name": "Keine Helfer gefunden"
             }

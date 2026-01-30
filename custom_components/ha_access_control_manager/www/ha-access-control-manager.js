@@ -16,6 +16,8 @@ class AccessControlManager extends LitElement {
             tableData: { type: Array },
             helperTableHeaders: { type: Array },
             helperTableData: { type: Array },
+            entitiesWithoutDevicesHeaders: { type: Array },
+            entitiesWithoutDevices: { type: Array },
             dataUsers: { type: Array },
             dataGroups: { type: Array },
             isAnUser: { type: Boolean },
@@ -28,7 +30,8 @@ class AccessControlManager extends LitElement {
             _isSaving: { type: Boolean },
             restartDialogOpen: { type: Boolean },
             devicesCollapsed: { type: Boolean },
-            helpersCollapsed: { type: Boolean }
+            helpersCollapsed: { type: Boolean },
+            entitiesWithoutDevicesCollapsed: { type: Boolean }
         };
     }
 
@@ -38,8 +41,10 @@ class AccessControlManager extends LitElement {
         this.tableHeaders = ["name", "read", "write"];
         this.tableHeadersEntities = ["name", "entity_id", "read", "write"];
         this.helperTableHeaders = ["name", "entity_id", "read", "write"];
+        this.entitiesWithoutDevicesHeaders = ["name", "entity_id", "read", "write"];
         this.tableData = [];
         this.helperTableData = [];
+        this.entitiesWithoutDevices = [];
         this.dataUsers = [];
         this.dataGroups = [];
         this.isAnUser = false;
@@ -56,6 +61,7 @@ class AccessControlManager extends LitElement {
         this.restartDialogOpen = false;
         this.devicesCollapsed = false;
         this.helpersCollapsed = false;
+        this.entitiesWithoutDevicesCollapsed = false;
     }
 
     translate(key) {
@@ -81,16 +87,26 @@ class AccessControlManager extends LitElement {
 
     fetchDevices() {
         this.hass.callWS({ type: 'ha_access_control/list_devices' }).then(devices => {
-            devices.forEach(device => {
-                this.tableData.push({
+            const withoutDevices = devices.find(device => device.id === 'withoutDevices');
+            this.entitiesWithoutDevices = (withoutDevices?.entities || []).map(entity => ({
+                ...entity,
+                read: false,
+                write: false
+            }));
+            this.tableData = devices
+                .filter(device => device.id !== 'withoutDevices')
+                .map(device => ({
                     entities: device.entities,
                     name: device.name,
                     id: device.id,
                     read: false,
                     write: false
-                });
-            })
-            // this.requestUpdate();
+                }));
+            this.filterEntitiesWithoutDevices();
+
+            if (this.selected && !this.isAnUser && this.selected.id) {
+                this.loadData(this.selected);
+            }
         });
     }
 
@@ -101,11 +117,23 @@ class AccessControlManager extends LitElement {
                 read: false,
                 write: false
             }));
+            this.filterEntitiesWithoutDevices();
 
             if (this.selected && !this.isAnUser && this.selected.id) {
                 this.loadData(this.selected);
             }
         });
+    }
+
+    filterEntitiesWithoutDevices() {
+        if (!this.entitiesWithoutDevices || this.entitiesWithoutDevices.length === 0) {
+            return;
+        }
+        if (!this.helperTableData || this.helperTableData.length === 0) {
+            return;
+        }
+        const helperIds = new Set(this.helperTableData.map(helper => helper.entity_id));
+        this.entitiesWithoutDevices = this.entitiesWithoutDevices.filter(entity => !helperIds.has(entity.entity_id));
     }
 
     fetchAuths() {
@@ -222,6 +250,26 @@ class AccessControlManager extends LitElement {
             return { ...helper, read: false, write: false };
         });
 
+        this.filterEntitiesWithoutDevices();
+        this.entitiesWithoutDevices = this.entitiesWithoutDevices.map(entity => {
+            if (allTrueRW) {
+                return { ...entity, read: true, write: true };
+            }
+
+            if (allTrueRead) {
+                return { ...entity, read: true, write: false };
+            }
+
+            if (data.policy?.entities?.entity_ids[entity.entity_id]) {
+                const entityPolicy = data.policy.entities.entity_ids[entity.entity_id];
+                const read = entityPolicy ? true : false;
+                const write = entityPolicy && typeof entityPolicy !== 'object' ? true : false;
+                return { ...entity, read, write };
+            }
+
+            return { ...entity, read: false, write: false };
+        });
+
         this.tableData = [...this.tableData];
         this.requestUpdate();
     }
@@ -305,6 +353,23 @@ class AccessControlManager extends LitElement {
         }).filter(Boolean);
     }
 
+    get processedEntitiesWithoutDevices() {
+        const searchTermLower = this.searchTerm ? this.searchTerm.toLowerCase() : null;
+        if (!this.entitiesWithoutDevices) {
+            return [];
+        }
+
+        if (!searchTermLower) {
+            return this.entitiesWithoutDevices;
+        }
+
+        return this.entitiesWithoutDevices.filter(entity =>
+            (entity.name && entity.name.toLowerCase().includes(searchTermLower)) ||
+            (entity.original_name && entity.original_name.toLowerCase().includes(searchTermLower)) ||
+            (entity.entity_id && entity.entity_id.toLowerCase().includes(searchTermLower))
+        );
+    }
+
     displayCustomGroupWarning() {
         this.needToSetPermissions = false;
         this.dataGroups.forEach(group => {
@@ -377,6 +442,42 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    getEntitiesWithoutDevicesSelectAllState(field) {
+        const filteredData = this.processedEntitiesWithoutDevices;
+        if (!filteredData || filteredData.length === 0) {
+            return false;
+        }
+        const states = filteredData.map(item => item[field]);
+        const allChecked = states.every(val => val === true);
+        if (allChecked) return true;
+        const someChecked = states.some(val => val === true);
+        if (someChecked) return 'indeterminate';
+        return false;
+    }
+
+    handleEntitiesWithoutDevicesSelectAll(field, event) {
+        const isChecked = event.target.checked;
+        const filteredData = this.processedEntitiesWithoutDevices;
+        const filteredIds = new Set(filteredData.map(entity => entity.entity_id));
+        this.entitiesWithoutDevices = this.entitiesWithoutDevices.map(entity => {
+            if (!filteredIds.has(entity.entity_id)) {
+                return entity;
+            }
+            return { ...entity, [field]: isChecked };
+        });
+        this.requestUpdate();
+    }
+
+    updateEntitiesWithoutDevicesCheckbox(entityId, field, newState) {
+        this.entitiesWithoutDevices = this.entitiesWithoutDevices.map(entity => {
+            if (entity.entity_id !== entityId) {
+                return entity;
+            }
+            return { ...entity, [field]: newState };
+        });
+        this.requestUpdate();
+    }
+
     save() {
         if (this._isSaving) {
             return;
@@ -402,6 +503,17 @@ class AccessControlManager extends LitElement {
                         delete this.selected.policy.entities.entity_ids[entity.entity_id];
                     }
                 });
+            });
+            this.entitiesWithoutDevices.forEach(entity => {
+                if (entity.read && entity.write) {
+                    this.selected.policy.entities.entity_ids[entity.entity_id] = true;
+                } else if (entity.read) {
+                    this.selected.policy.entities.entity_ids[entity.entity_id] = {
+                        read: true
+                    };
+                } else {
+                    delete this.selected.policy.entities.entity_ids[entity.entity_id];
+                }
             });
             this.helperTableData.forEach(helper => {
                 if (helper.read && helper.write) {
@@ -510,12 +622,18 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    toggleEntitiesWithoutDevicesCard() {
+        this.entitiesWithoutDevicesCollapsed = !this.entitiesWithoutDevicesCollapsed;
+        this.requestUpdate();
+    }
+
     toggleHelpersCard() {
         this.helpersCollapsed = !this.helpersCollapsed;
         this.requestUpdate();
     }
 
     render() {
+        const entitiesWithoutDevicesTitle = this.translate("entities_without_devices_permissions_for") || "Entities without devices permissions for";
         return html`
         <div>
             <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
@@ -861,6 +979,77 @@ class AccessControlManager extends LitElement {
                         `}
                     </ha-card>
                 ` : null}
+                ${!this.isAnUser ? html`
+                    <ha-card
+                        class="entities-without-devices-card collapsible-card"
+                        header="${entitiesWithoutDevicesTitle} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
+                    >
+                        <div class="card-toggle-icon" @click=${this.toggleEntitiesWithoutDevicesCard}>
+                            <ha-icon icon="${this.entitiesWithoutDevicesCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                        </div>
+                        ${this.entitiesWithoutDevicesCollapsed ? null : html`
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            ${this.entitiesWithoutDevicesHeaders.map((header) => {
+                                                if (header === 'read' || header === 'write') {
+                                                    const state = this.getEntitiesWithoutDevicesSelectAllState(header);
+                                                    return html`<th>
+                                                        <mwc-checkbox 
+                                                            .checked=${state === true}
+                                                            .indeterminate=${state === 'indeterminate'}
+                                                            @change=${(e) => this.handleEntitiesWithoutDevicesSelectAll(header, e)}
+                                                            style="vertical-align: middle; margin-right: 4px;">
+                                                        </mwc-checkbox>
+                                                        <span style="vertical-align: middle;">${this.translate(header)}</span>
+                                                    </th>`
+                                                }
+                                                return html`<th>${this.translate(header)}</th>`;
+                                            })}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${this.processedEntitiesWithoutDevices.length ? this.processedEntitiesWithoutDevices.map(entity => html`
+                                            <tr>
+                                                <td>${entity.name === 'Unknown' ? (entity.original_name || entity.entity_id) : entity.name}</td>
+                                                <td>${entity.entity_id}</td>
+                                                <td>
+                                                    <mwc-checkbox
+                                                        .checked="${entity.read}"
+                                                        @change="${(e) => this.updateEntitiesWithoutDevicesCheckbox(entity.entity_id, 'read', e.target.checked)}"
+                                                    ></mwc-checkbox>
+                                                </td>
+                                                <td>
+                                                    <mwc-checkbox
+                                                        .checked="${entity.write}"
+                                                        @change="${(e) => this.updateEntitiesWithoutDevicesCheckbox(entity.entity_id, 'write', e.target.checked)}"
+                                                    ></mwc-checkbox>
+                                                </td>
+                                            </tr>
+                                        `) : html`<tr><td colspan="4">${this.translate("entities_not_found")}</td></tr>`}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="card-footer">
+                                <ha-button
+                                    @click=${this.save}
+                                    .disabled=${this._isSaving}
+                                >
+                                    ${this.translate("save")}
+                                </ha-button>
+                                <ha-button
+                                    class="restart-button"
+                                    variant="danger"
+                                    @click=${this.restart}
+                                    .disabled=${this._isSaving}
+                                >
+                                    ${this.translate("restart")}
+                                </ha-button>
+                            </div>
+                        `}
+                    </ha-card>
+                ` : null}
             </div>
         </div>
         <ha-dialog
@@ -996,7 +1185,8 @@ class AccessControlManager extends LitElement {
 
             .group-card,
             .entites-cards,
-            .helpers-card {
+            .helpers-card,
+            .entities-without-devices-card {
                 margin: 10px;
             }
             

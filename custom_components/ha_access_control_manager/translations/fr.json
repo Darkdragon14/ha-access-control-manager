@@ -86,6 +86,9 @@
             "helper_permissions_for": {
                 "name": "Autorisations des helpers pour"
             },
+            "entities_without_devices_permissions_for": {
+                "name": "Autorisations des entités sans appareils pour"
+            },
             "helpers_not_found": {
                 "name": "Aucun helper trouvé"
             }
