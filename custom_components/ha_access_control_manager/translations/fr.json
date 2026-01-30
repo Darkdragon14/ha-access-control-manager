@@ -82,6 +82,15 @@
             },
             "custom_group_warning": {
                 "name": "Attention vous avez un groupe personalisé sans polices déclarées veuillez set au moins une police avant de restart home assistant"
+            },
+            "helper_permissions_for": {
+                "name": "Autorisations des helpers pour"
+            },
+            "entities_without_devices_permissions_for": {
+                "name": "Autorisations des entités sans appareils pour"
+            },
+            "helpers_not_found": {
+                "name": "Aucun helper trouvé"
             }
         } 
     }

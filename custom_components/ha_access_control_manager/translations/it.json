@@ -82,6 +82,15 @@
             },
             "custom_group_warning": {
                 "name": "Attenzione, hai un gruppo personalizzato senza policy dichiarate. Imposta almeno una policy prima di riavviare Home Assistant"
+            },
+            "helper_permissions_for": {
+                "name": "Permessi degli helper per"
+            },
+            "entities_without_devices_permissions_for": {
+                "name": "Permessi delle entità senza dispositivi per"
+            },
+            "helpers_not_found": {
+                "name": "Nessun helper trovato"
             }
         }
     }
