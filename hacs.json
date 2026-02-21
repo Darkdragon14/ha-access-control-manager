@@ -1,5 +1,6 @@
 {
   "name": "Access Control Manager",
   "render_readme": true,
-  "zip_release": false
+  "zip_release": true,
+  "filename": "ha-access-control-manager.zip"
 }
