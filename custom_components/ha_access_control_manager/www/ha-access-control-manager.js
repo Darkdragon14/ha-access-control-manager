@@ -33,6 +33,7 @@ class AccessControlManager extends LitElement {
             _isLoading: { type: Boolean },
             _isSaving: { type: Boolean },
             restartDialogOpen: { type: Boolean },
+            dashboardsCollapsed: { type: Boolean },
             devicesCollapsed: { type: Boolean },
             helpersCollapsed: { type: Boolean },
             entitiesWithoutDevicesCollapsed: { type: Boolean }
@@ -70,9 +71,10 @@ class AccessControlManager extends LitElement {
         this._isSaving = false;
         this.searchTimeout = null;
         this.restartDialogOpen = false;
-        this.devicesCollapsed = false;
-        this.helpersCollapsed = false;
-        this.entitiesWithoutDevicesCollapsed = false;
+        this.dashboardsCollapsed = true;
+        this.devicesCollapsed = true;
+        this.helpersCollapsed = true;
+        this.entitiesWithoutDevicesCollapsed = true;
     }
 
     translate(key) {
@@ -122,8 +124,13 @@ class AccessControlManager extends LitElement {
         });
     }
 
-    fetchDashboards() {
-        this.hass.callWS({ type: 'ha_access_control/list_dashboards' }).then(dashboards => {
+    fetchDashboards(userId = null) {
+        const request = { type: 'ha_access_control/list_dashboards' };
+        if (userId) {
+            request.user_id = userId;
+        }
+
+        this.hass.callWS(request).then(dashboards => {
             this.initializeDashboardsData(Array.isArray(dashboards) ? dashboards : []);
         });
     }
@@ -288,7 +295,9 @@ class AccessControlManager extends LitElement {
         }
         this.selected = user;
         this.selectedUserId = userId;
+        this.selectedGroupId = "";
         this.isAnUser = true;
+        this.fetchDashboards(userId);
     }
 
     changeGroup(e) {
@@ -302,6 +311,7 @@ class AccessControlManager extends LitElement {
             return;
         }
         this.selected = group;
+        this.selectedUserId = "";
         this.selectedGroupId = groupId;
         this.isAnUser = false;
         this.loadData(group);
@@ -786,8 +796,9 @@ class AccessControlManager extends LitElement {
                 }
             });
 
+            payload = this.selected;
+        } else {
             const dashboards = this.collectDashboardPermissions();
-            this.selected.dashboards = dashboards;
             payload = {
                 ...this.selected,
                 dashboards
@@ -938,92 +949,118 @@ class AccessControlManager extends LitElement {
     }
 
     renderDashboardPermissionsCard() {
-        if (this.isAnUser) {
+        if (!this.isAnUser) {
             return null;
         }
 
         const selectAllState = this.getDashboardSelectAllState('visible');
 
         return html`
-            <ha-card class="dashboards-card" header="${this.translate("dashboard_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
-                <div class="table-wrapper">
-                    ${this.dashboardsData.length === 0 ? html`
-                        <div class="empty-state">
-                            ${this.translate("dashboards_not_found")}
-                        </div>
-                    ` : html`
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>${this.translate("name")}</th>
-                                    <th>
-                                        <mwc-checkbox
-                                            .checked=${selectAllState === true}
-                                            .indeterminate=${selectAllState === 'indeterminate'}
-                                            @change=${(e) => this.handleDashboardSelectAll('visible', e)}
-                                            style="vertical-align: middle; margin-right: 4px;">
-                                        </mwc-checkbox>
-                                        <span style="vertical-align: middle;">${this.translate("visible")}</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${this.dashboardsWithState.map((dashboard) => html`
+            <ha-card class="dashboards-card collapsible-card" header="${this.translate("dashboard_permissions_for")} ${this.selected?.username || this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
+                <div class="card-toggle-icon" @click=${this.toggleDashboardsCard}>
+                    <ha-icon icon="${this.dashboardsCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                </div>
+                ${this.dashboardsCollapsed ? null : html`
+                    <div class="table-wrapper">
+                        ${this.dashboardsData.length === 0 ? html`
+                            <div class="empty-state">
+                                ${this.translate("dashboards_not_found")}
+                            </div>
+                        ` : html`
+                            <table>
+                                <thead>
                                     <tr>
-                                        <td>
-                                            <ha-button
-                                                @click=${() => this.toggleDashboardViews(dashboard.id)}
-                                                appearance="plain"
-                                            >
-                                                ${dashboard.isExpanded ? "-" : "+"}
-                                            </ha-button>
-                                        </td>
-                                        <td>${dashboard.name || this.translate("unknown_dashboard")}</td>
-                                        <td>
+                                        <th></th>
+                                        <th>${this.translate("name")}</th>
+                                        <th>
                                             <mwc-checkbox
-                                                .checked="${dashboard.visible === true}"
-                                                .indeterminate="${dashboard.visible === 'indeterminate'}"
-                                                @change="${(e) => this.updateDashboardCheckbox(dashboard.id, 'visible', e.target.checked)}"
-                                            >
+                                                .checked=${selectAllState === true}
+                                                .indeterminate=${selectAllState === 'indeterminate'}
+                                                @change=${(e) => this.handleDashboardSelectAll('visible', e)}
+                                                style="vertical-align: middle; margin-right: 4px;">
                                             </mwc-checkbox>
-                                        </td>
+                                            <span style="vertical-align: middle;">${this.translate("visible")}</span>
+                                        </th>
                                     </tr>
-                                    ${dashboard.isExpanded ? html`
+                                </thead>
+                                <tbody>
+                                    ${this.dashboardsWithState.map((dashboard) => html`
                                         <tr>
-                                            <td colspan="3">
-                                                <table>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>${this.translate("name")}</th>
-                                                            <th>${this.translate("visible")}</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        ${dashboard.views.length > 0 ? dashboard.views.map((view) => html`
-                                                            <tr>
-                                                                <td>${view.name || this.translate("unknown_view")}</td>
-                                                                <td>
-                                                                    <mwc-checkbox
-                                                                        .checked="${view.visible}"
-                                                                        @change="${(e) => this.updateViewCheckbox(dashboard.id, view.id, 'visible', e.target.checked)}"
-                                                                    >
-                                                                    </mwc-checkbox>
-                                                                </td>
-                                                            </tr>
-                                                        `) : html`<tr><td colspan="2">${this.translate("views_not_found")}</td></tr>`}
-                                                    </tbody>
-                                                </table>
+                                            <td>
+                                                <ha-button
+                                                    @click=${() => this.toggleDashboardViews(dashboard.id)}
+                                                    appearance="plain"
+                                                >
+                                                    ${dashboard.isExpanded ? "-" : "+"}
+                                                </ha-button>
+                                            </td>
+                                            <td>${dashboard.name || this.translate("unknown_dashboard")}</td>
+                                            <td>
+                                                <mwc-checkbox
+                                                    .checked="${dashboard.visible === true}"
+                                                    .indeterminate="${dashboard.visible === 'indeterminate'}"
+                                                    @change="${(e) => this.updateDashboardCheckbox(dashboard.id, 'visible', e.target.checked)}"
+                                                >
+                                                </mwc-checkbox>
                                             </td>
                                         </tr>
-                                    ` : ''}
-                                `)}
-                            </tbody>
-                        </table>
-                    `}
-                </div>
+                                        ${dashboard.isExpanded ? html`
+                                            <tr>
+                                                <td colspan="3">
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>${this.translate("name")}</th>
+                                                                <th>${this.translate("visible")}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            ${dashboard.views.length > 0 ? dashboard.views.map((view) => html`
+                                                                <tr>
+                                                                    <td>${view.name || this.translate("unknown_view")}</td>
+                                                                    <td>
+                                                                        <mwc-checkbox
+                                                                            .checked="${view.visible}"
+                                                                            @change="${(e) => this.updateViewCheckbox(dashboard.id, view.id, 'visible', e.target.checked)}"
+                                                                        >
+                                                                        </mwc-checkbox>
+                                                                    </td>
+                                                                </tr>
+                                                            `) : html`<tr><td colspan="2">${this.translate("views_not_found")}</td></tr>`}
+                                                        </tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        ` : ''}
+                                    `)}
+                                </tbody>
+                            </table>
+                        `}
+                    </div>
+                    <div class="card-footer">
+                        <ha-button
+                            @click=${this.save}
+                            .disabled=${this._isSaving}
+                        >
+                            ${this.translate("save")}
+                        </ha-button>
+                        <ha-button
+                            class="restart-button"
+                            variant="danger"
+                            @click=${this.restart}
+                            .disabled=${this._isSaving}
+                        >
+                            ${this.translate("restart")}
+                        </ha-button>
+                    </div>
+                `}
             </ha-card>
         `;
+    }
+
+    toggleDashboardsCard() {
+        this.dashboardsCollapsed = !this.dashboardsCollapsed;
+        this.requestUpdate();
     }
 
     toggleDevicesCard() {
@@ -1207,9 +1244,10 @@ class AccessControlManager extends LitElement {
                                 </ha-dialog>
                             </div>
                         </div>
-                    </ha-card>`
-                : html`
+                    </ha-card>
                     ${this.renderDashboardPermissionsCard()}
+                    `
+                : html`
                     <ha-card
                         class="entites-cards collapsible-card"
                         header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
@@ -1720,6 +1758,7 @@ class AccessControlManager extends LitElement {
             .card-footer {
                 display: flex;
                 justify-content: flex-end;
+                gap: 8px;
                 padding: 16px;
                 border-bottom-left-radius: var(--ha-card-border-radius,12px);
                 border-bottom-right-radius: var(--ha-card-border-radius,12px);
