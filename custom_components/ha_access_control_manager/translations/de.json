@@ -32,6 +32,18 @@
             "save": {
                 "name": "Speichern"
             },
+            "restart": {
+                "name": "Neu starten"
+            },
+            "confirm_restart_title": {
+                "name": "Neustart bestätigen"
+            },
+            "confirm_restart_description": {
+                "name": "Möchten Sie Home Assistant wirklich neu starten?"
+            },
+            "confirm": {
+                "name": "Bestätigen"
+            },
             "create_new_group": {
                 "name": "Neue Gruppe erstellen"
             },

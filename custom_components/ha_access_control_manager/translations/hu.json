@@ -32,6 +32,18 @@
             "save": {
                 "name": "Mentés"
             },
+            "restart": {
+                "name": "Újraindítás"
+            },
+            "confirm_restart_title": {
+                "name": "Újraindítás megerősítése"
+            },
+            "confirm_restart_description": {
+                "name": "Biztosan újra szeretnéd indítani a Home Assistantot?"
+            },
+            "confirm": {
+                "name": "Megerősítés"
+            },
             "create_new_group": {
                 "name": "Új csoport létrehozása"
             },
@@ -70,6 +82,15 @@
             },
             "custom_group_warning": {
                 "name": "Figyelem, van egy egyedi csoportod, aminek nincsenek szabályai. Kérlek, adj hozzá legalább egy szabályt, mielőtt újraindítod a Home Assistant-ot."
+            },
+            "helper_permissions_for": {
+                "name": "Segédek engedélyei ehhez"
+            },
+            "entities_without_devices_permissions_for": {
+                "name": "Eszköz nélküli entitások engedélyei ehhez"
+            },
+            "helpers_not_found": {
+                "name": "Nem található segéd"
             }
         }
     }

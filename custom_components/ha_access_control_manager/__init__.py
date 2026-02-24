@@ -11,13 +11,18 @@ from homeassistant.components.panel_custom import async_register_panel
 from homeassistant.helpers import config_validation as cv
 
 from .get_devices import list_devices
+from .get_helpers import list_helpers
 from .get_users import list_users
 from .get_auths import list_auths
 from .set_auths import set_auths
 from .get_dashboards import list_dashboards
-from .bash_script import is_script_running, start_script
 
-from .const import DOMAIN, DEST_PATH_SCRIPT_JS, SOURCE_PATH_SCRIPT_JS, SCRIPT_JS, SCRIPT_BASH
+from .const import (
+    DOMAIN,
+    DEST_PATH_SCRIPT_JS,
+    SOURCE_PATH_SCRIPT_JS,
+    SCRIPT_JS,
+)
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
@@ -36,6 +41,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     websocket_api.async_register_command(hass, list_users)
     websocket_api.async_register_command(hass, list_devices)
+    websocket_api.async_register_command(hass, list_helpers)
     websocket_api.async_register_command(hass, list_auths)
     websocket_api.async_register_command(hass, set_auths)
     websocket_api.async_register_command(hass, list_dashboards)
@@ -67,6 +73,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     if path.startswith("/"):
         path = path[1:]
 
+
+    panels = hass.data.get("frontend_panels", {})
+    if path in panels:
+        hass.components.frontend.async_remove_panel(path)
+
     hass.async_create_task(
         async_register_panel(
             hass,
@@ -79,22 +90,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         )
     )
 
-    if not is_script_running(SCRIPT_BASH):
-        start_script(SCRIPT_BASH)
-
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Unload a config entry."""
-    path = config_entry.options.get("path", config_entry.data.get("path", "/ha-access-control-manager"))
+    path = config_entry.options.get("path", config_entry.data.get("path_to_admin_ui", "/ha-access-control-manager"))
     if path.startswith("/"):
         path = path[1:]
 
 
-    path = "ha_access_control_manager"
-    
-    path = "ha_access_control_manager"
     panels = hass.data.get("frontend_panels", {})
     if path in panels:
         hass.components.frontend.async_remove_panel(path)

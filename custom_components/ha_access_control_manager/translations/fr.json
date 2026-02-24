@@ -32,6 +32,18 @@
             "save": {
                 "name": "Sauvegarder"
             },
+            "restart": {
+                "name": "Redémarrer"
+            },
+            "confirm_restart_title": {
+                "name": "Confirmer le redémarrage"
+            },
+            "confirm_restart_description": {
+                "name": "Êtes-vous sûr de vouloir redémarrer Home Assistant ?"
+            },
+            "confirm": {
+                "name": "Confirmer"
+            },
             "create_new_group": {
                 "name": "Créer un nouveau groupe"
             },
@@ -88,6 +100,15 @@
             },
             "visible": {
                 "name": "Visible"
+            },
+            "helper_permissions_for": {
+                "name": "Autorisations des helpers pour"
+            },
+            "entities_without_devices_permissions_for": {
+                "name": "Autorisations des entités sans appareils pour"
+            },
+            "helpers_not_found": {
+                "name": "Aucun helper trouvé"
             }
         } 
     }

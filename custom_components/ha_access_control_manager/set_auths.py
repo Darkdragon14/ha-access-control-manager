@@ -82,6 +82,9 @@ async def save_auths(hass: HomeAssistant, auth_data: dict, msg: dict[str, Any]) 
         if os.path.exists(valid_file_path):
             os.remove(valid_file_path)
 
+    auth_path = hass.config.path(AUTH_PATH)
+    os.replace(new_file_path, auth_path)
+
 
 async def _save_group_dashboards(hass: HomeAssistant, group_id: str, dashboards: dict[str, Any]) -> None:
     file_path = hass.config.path(GROUP_DASHBOARD_PERMISSIONS_PATH)
