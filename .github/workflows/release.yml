@@ -17,14 +17,14 @@ jobs:
 
       - name: Create zip
         run: |
-          cd custom_components/ha_access_control_manger
+          cd custom_components/ha_access_control_manager
           zip ha-access-control-manager.zip -r ./
 
       - name: Upload release asset
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: custom_components/ha_access_control_manger/ha-access-control-manager.zip
+          file: custom_components/ha_access_control_manager/ha-access-control-manager.zip
           asset_name: ha-access-control-manager.zip
           tag: ${{ github.ref }}
           overwrite: true
