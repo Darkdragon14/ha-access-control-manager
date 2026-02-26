@@ -1710,16 +1710,21 @@ class AccessControlManager extends LitElement {
 
             .card-toggle-icon {
                 position: absolute;
-                top: 16px;
-                right: 16px;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 56px;
                 display: flex;
                 align-items: center;
-                justify-content: center;
+                justify-content: flex-end;
+                padding: 0 16px;
                 cursor: pointer;
+                z-index: 2;
             }
 
             .card-toggle-icon ha-icon {
                 --mdc-icon-size: 24px;
+                pointer-events: none;
             }
 
             table {
