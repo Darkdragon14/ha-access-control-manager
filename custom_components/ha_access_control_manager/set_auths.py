@@ -11,6 +11,7 @@ from .const import (
     NEW_AUTH_PATH,
     GROUP_DASHBOARD_PERMISSIONS_PATH,
     LOVELACE_DASHBOARDS_PATH,
+    LOVELACE_STORAGE_DIR,
     LOVELACE_STORAGE,
     LOVELACE_STORAGE_PREFIX,
 )
@@ -67,19 +68,14 @@ async def save_auths(hass: HomeAssistant, auth_data: dict, msg: dict[str, Any]) 
 
     await save_json_file(new_file_path, auth_data)
 
-    if dashboards_payload_present and sanitized_data.get("id"):
-        if msg["isAnUser"]:
-            await _save_user_dashboards(
-                hass,
-                sanitized_data["id"],
-                dashboards_payload,
-            )
-        else:
-            await _save_group_dashboards(
-                hass,
-                sanitized_data["id"],
-                dashboards_payload,
-            )
+    if dashboards_payload_present and sanitized_data.get("id") and not msg["isAnUser"]:
+        await _save_group_dashboards(
+            hass,
+            sanitized_data["id"],
+            dashboards_payload,
+        )
+
+    await _sync_group_dashboards_to_users(hass, auth_data.get("data"))
 
     # Validation logic
     valid_config = True
@@ -315,6 +311,183 @@ async def _save_group_dashboards(hass: HomeAssistant, group_id: str, dashboards:
     dashboards_store["groups"] = groups
 
     await save_json_file(file_path, dashboards_store)
+
+
+async def _load_group_dashboard_permissions(hass: HomeAssistant) -> dict[str, Any]:
+    file_path = hass.config.path(GROUP_DASHBOARD_PERMISSIONS_PATH)
+    dashboards_store = await get_json_file(file_path)
+    if not isinstance(dashboards_store, dict):
+        return {}
+
+    groups = dashboards_store.get("groups")
+    return groups if isinstance(groups, dict) else {}
+
+
+def _extract_user_group_ids(auth_data: dict[str, Any]) -> dict[str, list[str]]:
+    users = auth_data.get("users")
+    if not isinstance(users, list):
+        return {}
+
+    user_group_ids: dict[str, list[str]] = {}
+    for user in users:
+        if not isinstance(user, dict):
+            continue
+
+        user_id = user.get("id")
+        if not isinstance(user_id, str) or not user_id:
+            continue
+
+        raw_group_ids = user.get("group_ids")
+        if not isinstance(raw_group_ids, list):
+            user_group_ids[user_id] = []
+            continue
+
+        group_ids = [group_id for group_id in raw_group_ids if isinstance(group_id, str) and group_id]
+        user_group_ids[user_id] = list(dict.fromkeys(group_ids))
+
+    return user_group_ids
+
+
+def _is_group_view_visible(
+    group_dashboards: dict[str, Any] | None,
+    dashboard_id: str,
+    view_id: str,
+) -> bool:
+    if not isinstance(group_dashboards, dict):
+        return False
+
+    dashboard_state = group_dashboards.get(dashboard_id)
+    if not isinstance(dashboard_state, dict):
+        return False
+
+    view_states = dashboard_state.get("views")
+    if isinstance(view_states, dict) and view_id in view_states:
+        return view_states.get(view_id) is True
+
+    return dashboard_state.get("visible") is True
+
+
+def _resolve_allowed_user_ids_for_view(
+    user_group_ids: dict[str, list[str]],
+    dashboards_map: dict[str, Any],
+    dashboard_id: str,
+    view_id: str,
+) -> list[str]:
+    allowed_user_ids: list[str] = []
+
+    for user_id, group_ids in user_group_ids.items():
+        if any(
+            _is_group_view_visible(dashboards_map.get(group_id), dashboard_id, view_id)
+            for group_id in group_ids
+        ):
+            allowed_user_ids.append(user_id)
+
+    return allowed_user_ids
+
+
+def _set_view_visible_users(view: dict[str, Any], allowed_user_ids: list[str]) -> bool:
+    raw_visible = view.get("visible") if "visible" in view else None
+    preserved_entries: list[Any] = []
+
+    if isinstance(raw_visible, list):
+        for entry in raw_visible:
+            if not isinstance(entry, dict) or "user" not in entry:
+                preserved_entries.append(entry)
+
+    visible_entries = [{"user": user_id} for user_id in allowed_user_ids]
+    new_visible = visible_entries + preserved_entries
+
+    if isinstance(raw_visible, list) and raw_visible == new_visible:
+        return False
+
+    view["visible"] = new_visible
+    return True
+
+
+async def _collect_dashboard_targets(hass: HomeAssistant) -> list[tuple[str, str]]:
+    dashboard_definitions = await _load_dashboard_definitions(hass)
+    targets: dict[str, str] = {"lovelace": LOVELACE_STORAGE}
+
+    for dashboard_id, dashboard_info in dashboard_definitions.items():
+        if not isinstance(dashboard_id, str) or not dashboard_id:
+            continue
+
+        filename = dashboard_info.get("filename") if isinstance(dashboard_info, dict) else None
+        if not isinstance(filename, str) or not filename:
+            filename = LOVELACE_STORAGE if dashboard_id == "lovelace" else f"{LOVELACE_STORAGE_PREFIX}{dashboard_id}"
+
+        targets[dashboard_id] = filename
+
+    try:
+        storage_files = await hass.async_add_executor_job(
+            os.listdir,
+            hass.config.path(LOVELACE_STORAGE_DIR),
+        )
+    except FileNotFoundError:
+        storage_files = []
+
+    for filename in storage_files:
+        if not filename.startswith("lovelace."):
+            continue
+
+        dashboard_id = filename[len("lovelace.") :]
+        if not dashboard_id or dashboard_id in targets:
+            continue
+
+        targets[dashboard_id] = f"{LOVELACE_STORAGE_PREFIX}{dashboard_id}"
+
+    return list(targets.items())
+
+
+async def _sync_group_dashboards_to_users(
+    hass: HomeAssistant,
+    auth_data: dict[str, Any] | None,
+) -> None:
+    if not isinstance(auth_data, dict):
+        return
+
+    user_group_ids = _extract_user_group_ids(auth_data)
+    if not user_group_ids:
+        return
+
+    dashboards_map = await _load_group_dashboard_permissions(hass)
+    dashboard_targets = await _collect_dashboard_targets(hass)
+
+    for dashboard_id, filename in dashboard_targets:
+        storage, file_path = await _load_dashboard_storage(hass, dashboard_id, filename)
+        if not isinstance(storage, dict) or not file_path:
+            continue
+
+        data = storage.get("data")
+        if not isinstance(data, dict):
+            continue
+
+        config = data.get("config")
+        if not isinstance(config, dict):
+            continue
+
+        views = config.get("views")
+        if not isinstance(views, list):
+            continue
+
+        changed = False
+        for index, view in enumerate(views):
+            if not isinstance(view, dict):
+                continue
+
+            view_id = _build_view_id(dashboard_id, view, index)
+            allowed_user_ids = _resolve_allowed_user_ids_for_view(
+                user_group_ids,
+                dashboards_map,
+                dashboard_id,
+                view_id,
+            )
+
+            if _set_view_visible_users(view, allowed_user_ids):
+                changed = True
+
+        if changed:
+            await save_json_file(file_path, storage)
 
 
 async def _attach_group_dashboards(hass: HomeAssistant, auth_data: dict[str, Any] | None) -> None:

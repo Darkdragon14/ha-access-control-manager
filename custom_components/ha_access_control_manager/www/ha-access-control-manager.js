@@ -124,13 +124,8 @@ class AccessControlManager extends LitElement {
         });
     }
 
-    fetchDashboards(userId = null) {
-        const request = { type: 'ha_access_control/list_dashboards' };
-        if (userId) {
-            request.user_id = userId;
-        }
-
-        this.hass.callWS(request).then(dashboards => {
+    fetchDashboards() {
+        this.hass.callWS({ type: 'ha_access_control/list_dashboards' }).then(dashboards => {
             this.initializeDashboardsData(Array.isArray(dashboards) ? dashboards : []);
         });
     }
@@ -297,7 +292,6 @@ class AccessControlManager extends LitElement {
         this.selectedUserId = userId;
         this.selectedGroupId = "";
         this.isAnUser = true;
-        this.fetchDashboards(userId);
     }
 
     changeGroup(e) {
@@ -796,13 +790,13 @@ class AccessControlManager extends LitElement {
                 }
             });
 
-            payload = this.selected;
-        } else {
             const dashboards = this.collectDashboardPermissions();
             payload = {
                 ...this.selected,
                 dashboards
             };
+        } else {
+            payload = this.selected;
         }
 
         this._isSaving = true;
@@ -949,14 +943,14 @@ class AccessControlManager extends LitElement {
     }
 
     renderDashboardPermissionsCard() {
-        if (!this.isAnUser) {
+        if (this.isAnUser) {
             return null;
         }
 
         const selectAllState = this.getDashboardSelectAllState('visible');
 
         return html`
-            <ha-card class="dashboards-card collapsible-card" header="${this.translate("dashboard_permissions_for")} ${this.selected?.username || this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
+            <ha-card class="dashboards-card collapsible-card" header="${this.translate("dashboard_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
                 <div class="card-toggle-icon" @click=${this.toggleDashboardsCard}>
                     <ha-icon icon="${this.dashboardsCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
                 </div>
@@ -1245,9 +1239,9 @@ class AccessControlManager extends LitElement {
                             </div>
                         </div>
                     </ha-card>
-                    ${this.renderDashboardPermissionsCard()}
                     `
                 : html`
+                    ${this.renderDashboardPermissionsCard()}
                     <ha-card
                         class="entites-cards collapsible-card"
                         header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
