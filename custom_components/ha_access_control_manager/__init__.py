@@ -15,6 +15,7 @@ from .get_helpers import list_helpers
 from .get_users import list_users
 from .get_auths import list_auths
 from .set_auths import set_auths
+from .get_dashboards import list_dashboards
 
 from .const import (
     DOMAIN,
@@ -43,6 +44,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket_api.async_register_command(hass, list_helpers)
     websocket_api.async_register_command(hass, list_auths)
     websocket_api.async_register_command(hass, set_auths)
+    websocket_api.async_register_command(hass, list_dashboards)
     
     source_path = hass.config.path(SOURCE_PATH_SCRIPT_JS)
     dest_dir = hass.config.path(DEST_PATH_SCRIPT_JS)

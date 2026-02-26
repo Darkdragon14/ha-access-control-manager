@@ -14,6 +14,8 @@ class AccessControlManager extends LitElement {
             users: { type: Array },
             tableHeaders: { type: Array },
             tableData: { type: Array },
+            dashboardsTableHeaders: { type: Array },
+            dashboardsData: { type: Array },
             helperTableHeaders: { type: Array },
             helperTableData: { type: Array },
             entitiesWithoutDevicesHeaders: { type: Array },
@@ -31,6 +33,7 @@ class AccessControlManager extends LitElement {
             _isLoading: { type: Boolean },
             _isSaving: { type: Boolean },
             restartDialogOpen: { type: Boolean },
+            dashboardsCollapsed: { type: Boolean },
             devicesCollapsed: { type: Boolean },
             helpersCollapsed: { type: Boolean },
             entitiesWithoutDevicesCollapsed: { type: Boolean }
@@ -45,6 +48,8 @@ class AccessControlManager extends LitElement {
         this.helperTableHeaders = ["name", "entity_id", "read", "write"];
         this.entitiesWithoutDevicesHeaders = ["name", "entity_id", "read", "write"];
         this.tableData = [];
+        this.dashboardsTableHeaders = ["name", "visible"];
+        this.dashboardsData = [];
         this.helperTableData = [];
         this.entitiesWithoutDevices = [];
         this.dataUsers = [];
@@ -58,14 +63,18 @@ class AccessControlManager extends LitElement {
         this.newGroupName = '';
         this.openCreateGroup = false;
         this.expandedDevices = new Set();
+        this.expandedDashboards = new Set();
+        this._dashboardsTemplate = [];
+        this._pendingDashboardSelection = null;
         this.searchTerm = '';
         this._isLoading = false;
         this._isSaving = false;
         this.searchTimeout = null;
         this.restartDialogOpen = false;
-        this.devicesCollapsed = false;
-        this.helpersCollapsed = false;
-        this.entitiesWithoutDevicesCollapsed = false;
+        this.dashboardsCollapsed = true;
+        this.devicesCollapsed = true;
+        this.helpersCollapsed = true;
+        this.entitiesWithoutDevicesCollapsed = true;
     }
 
     translate(key) {
@@ -77,6 +86,7 @@ class AccessControlManager extends LitElement {
             this.fetchUsers();
             this.fetchAuths();
             this.fetchDevices();
+            this.fetchDashboards();
             this.fetchHelpers();
             this.needToFetch = false;
         }
@@ -114,6 +124,12 @@ class AccessControlManager extends LitElement {
         });
     }
 
+    fetchDashboards() {
+        this.hass.callWS({ type: 'ha_access_control/list_dashboards' }).then(dashboards => {
+            this.initializeDashboardsData(Array.isArray(dashboards) ? dashboards : []);
+        });
+    }
+
     fetchHelpers() {
         this.hass.callWS({ type: 'ha_access_control/list_helpers' }).then(helpers => {
             this.helperTableData = helpers.map(helper => ({
@@ -147,9 +163,18 @@ class AccessControlManager extends LitElement {
     }
 
     loadAuths(data) {
-        this.dataGroups = data.groups;
+        const groups = Array.isArray(data.groups) ? data.groups.map(group => ({
+            ...group,
+            dashboards: group.dashboards || {}
+        })) : [];
+        groups.forEach(group => {
+            if (!group.dashboards) {
+                group.dashboards = {};
+            }
+        });
+        this.dataGroups = groups;
 
-        const users = data.users;
+        const users = Array.isArray(data.users) ? data.users : [];
 
         users.forEach(user => {
             if (!user.policy?.entities) {
@@ -176,7 +201,81 @@ class AccessControlManager extends LitElement {
         });
 
         this.dataUsers = users;
+        
+        if (this.selected?.id) {
+            if (this.isAnUser) {
+                const updatedUser = this.dataUsers.find(user => user.id === this.selected.id);
+                if (updatedUser) {
+                    this.selected = updatedUser;
+                }
+            } else {
+                const updatedGroup = this.dataGroups.find(group => group.id === this.selected.id);
+                if (updatedGroup) {
+                    this.selected = updatedGroup;
+                    this.loadData(updatedGroup);
+                    this.loadDashboardPermissions(updatedGroup);
+                }
+            }
+        }
+
         this.displayCustomGroupWarning();
+    }
+
+    initializeDashboardsData(dashboards = []) {
+        if (!Array.isArray(dashboards) || dashboards.length === 0) {
+            this._dashboardsTemplate = [];
+            this.dashboardsData = [];
+            return;
+        }
+
+        const preparedDashboards = dashboards.map(dashboard => {
+            const views = (dashboard.views || []).map(view => ({
+                ...view,
+                visible: view.visible ?? false
+            }));
+
+            let visibleState = dashboard.visible ?? false;
+            if (views.length > 0) {
+                const allVisible = views.every(view => view.visible === true);
+                const someVisible = views.some(view => view.visible === true);
+                if (allVisible) {
+                    visibleState = true;
+                } else if (someVisible) {
+                    visibleState = 'indeterminate';
+                } else {
+                    visibleState = false;
+                }
+            }
+
+            return {
+                ...dashboard,
+                visible: visibleState,
+                views
+            };
+        });
+
+        this._dashboardsTemplate = this.cloneDashboards(preparedDashboards);
+        this.dashboardsData = this.cloneDashboards(preparedDashboards);
+
+        if (!this.isAnUser && this.selected?.id) {
+            const group = this.dataGroups.find(item => item.id === this.selected.id);
+            if (group) {
+                this.loadDashboardPermissions(group);
+            }
+        } else if (this._pendingDashboardSelection) {
+            const pendingGroup = this.dataGroups.find(item => item.id === this._pendingDashboardSelection);
+            if (pendingGroup) {
+                this.loadDashboardPermissions(pendingGroup);
+            }
+            this._pendingDashboardSelection = null;
+        }
+    }
+
+    cloneDashboards(dashboards = []) {
+        return dashboards.map(dashboard => ({
+            ...dashboard,
+            views: (dashboard.views || []).map(view => ({ ...view }))
+        }));
     }
 
     changeUser(e) {
@@ -191,6 +290,7 @@ class AccessControlManager extends LitElement {
         }
         this.selected = user;
         this.selectedUserId = userId;
+        this.selectedGroupId = "";
         this.isAnUser = true;
     }
 
@@ -205,9 +305,11 @@ class AccessControlManager extends LitElement {
             return;
         }
         this.selected = group;
+        this.selectedUserId = "";
         this.selectedGroupId = groupId;
         this.isAnUser = false;
         this.loadData(group);
+        this.loadDashboardPermissions(group);
     }
 
     resetSelection() {
@@ -311,6 +413,66 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    loadDashboardPermissions(group) {
+        if (!group) {
+            this.dashboardsData = this.cloneDashboards(this._dashboardsTemplate || []);
+            return;
+        }
+
+        if (!Array.isArray(this._dashboardsTemplate) || this._dashboardsTemplate.length === 0) {
+            this._pendingDashboardSelection = group.id;
+            return;
+        }
+
+        if (!group.dashboards) {
+            group.dashboards = {};
+        }
+
+        const dashboardsMap = group.dashboards || {};
+        const clonedDashboards = this.cloneDashboards(this._dashboardsTemplate);
+
+        this.dashboardsData = clonedDashboards.map(dashboard => {
+            const storedDashboard = dashboardsMap[dashboard.id];
+            const clonedViews = (dashboard.views || []).map(view => {
+                let viewVisible = false;
+                if (storedDashboard && storedDashboard.views && Object.prototype.hasOwnProperty.call(storedDashboard.views, view.id)) {
+                    viewVisible = storedDashboard.views[view.id] === true;
+                } else if (storedDashboard && storedDashboard.visible === true) {
+                    viewVisible = true;
+                }
+
+                return {
+                    ...view,
+                    visible: viewVisible
+                };
+            });
+
+            let visibleState = false;
+
+            if (clonedViews.length > 0) {
+                const allVisible = clonedViews.every(val => val.visible === true);
+                const someVisible = clonedViews.some(val => val.visible === true);
+                if (allVisible) {
+                    visibleState = true;
+                } else if (someVisible) {
+                    visibleState = 'indeterminate';
+                } else {
+                    visibleState = false;
+                }
+            } else if (storedDashboard && storedDashboard.visible === true) {
+                visibleState = true;
+            }
+
+            return {
+                ...dashboard,
+                views: clonedViews,
+                visible: visibleState
+            };
+        });
+
+        this._pendingDashboardSelection = null;
+    }
+
     handleCheckboxChange(groupId, checked) {
         if (checked) {
             this.selected.group_ids.push(groupId);
@@ -329,7 +491,7 @@ class AccessControlManager extends LitElement {
         const name = this.newGroupName.trim();
         if (name) {
             const id = `custom-group-${name.toLowerCase().replaceAll(' ', '-')}`;
-            const newGroup = { id, name };
+            const newGroup = { id, name, dashboards: {} };
             this.dataGroups = [...this.dataGroups, newGroup];
             this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: false, data: newGroup }).then(data => {
                 this.loadAuths(data);
@@ -390,6 +552,14 @@ class AccessControlManager extends LitElement {
         }).filter(Boolean);
     }
 
+    get dashboardsWithState() {
+        return this.dashboardsData.map(dashboard => ({
+            ...dashboard,
+            views: dashboard.views || [],
+            isExpanded: this.expandedDashboards.has(dashboard.id)
+        }));
+    }
+
     get processedEntitiesWithoutDevices() {
         const searchTermLower = this.searchTerm ? this.searchTerm.toLowerCase() : null;
         if (!this.entitiesWithoutDevices) {
@@ -446,6 +616,59 @@ class AccessControlManager extends LitElement {
         });
         this.tableData = [...this.tableData];
         this.requestUpdate();
+    }
+
+    getDashboardSelectAllState(field) {
+        if (this.dashboardsData.length === 0) {
+            return false;
+        }
+
+        const states = this.dashboardsData.map(item => item[field]);
+        const allChecked = states.every(val => val === true);
+        if (allChecked) {
+            return true;
+        }
+
+        const someChecked = states.some(val => val === true || val === 'indeterminate');
+        if (someChecked) {
+            return 'indeterminate';
+        }
+
+        return false;
+    }
+
+    handleDashboardSelectAll(field, event) {
+        const isChecked = event.target.checked;
+        this.dashboardsData.forEach(item => {
+            item[field] = isChecked;
+            (item.views || []).forEach(view => {
+                view[field] = isChecked;
+            });
+        });
+        this.dashboardsData = [...this.dashboardsData];
+        this.requestUpdate();
+    }
+
+    collectDashboardPermissions() {
+        const result = {};
+
+        this.dashboardsData.forEach(dashboard => {
+            const entry = {
+                visible: dashboard.visible === true,
+            };
+
+            if ((dashboard.views || []).length > 0) {
+                const viewStates = {};
+                dashboard.views.forEach(view => {
+                    viewStates[view.id] = view.visible === true;
+                });
+                entry.views = viewStates;
+            }
+
+            result[dashboard.id] = entry;
+        });
+
+        return result;
     }
 
     getHelperSelectAllState(field) {
@@ -519,6 +742,9 @@ class AccessControlManager extends LitElement {
         if (this._isSaving) {
             return;
         }
+
+        let payload = this.selected;
+
         if (!this.isAnUser) {
             if (!this.selected.policy) {
                 this.selected.policy = {
@@ -563,10 +789,19 @@ class AccessControlManager extends LitElement {
                     delete this.selected.policy.entities.entity_ids[helper.entity_id];
                 }
             });
+
+            const dashboards = this.collectDashboardPermissions();
+            payload = {
+                ...this.selected,
+                dashboards
+            };
+        } else {
+            payload = this.selected;
         }
+
         this._isSaving = true;
         this.requestUpdate();
-        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: this.selected })
+        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: this.isAnUser, data: payload })
             .then(data => {
                 this.loadAuths(data);
             })
@@ -645,12 +880,180 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    updateDashboardCheckbox(dashboardId, field, newState) {
+        const dashboard = this.dashboardsData.find(d => d.id === dashboardId);
+        if (!dashboard) {
+            return;
+        }
+
+        dashboard[field] = newState;
+        (dashboard.views || []).forEach(view => {
+            view[field] = newState;
+        });
+
+        this.dashboardsData = [...this.dashboardsData];
+        this.requestUpdate();
+    }
+
+    updateViewCheckbox(dashboardId, viewId, field, newState) {
+        const dashboard = this.dashboardsData.find(d => d.id === dashboardId);
+        if (!dashboard) {
+            return;
+        }
+
+        const view = (dashboard.views || []).find(v => v.id === viewId);
+        if (!view) {
+            return;
+        }
+
+        view[field] = newState;
+
+        const viewStates = (dashboard.views || []).map(v => v[field]);
+        const allChecked = viewStates.every(val => val === true);
+        const noneChecked = viewStates.every(val => val === false);
+
+        if (allChecked) {
+            dashboard[field] = true;
+        } else if (noneChecked) {
+            dashboard[field] = false;
+        } else {
+            dashboard[field] = 'indeterminate';
+        }
+
+        this.dashboardsData = [...this.dashboardsData];
+        this.requestUpdate();
+    }
+
+    toggleDashboardViews(dashboardId) {
+        if (this.expandedDashboards.has(dashboardId)) {
+            this.expandedDashboards.delete(dashboardId);
+        } else {
+            this.expandedDashboards.add(dashboardId);
+        }
+        this.requestUpdate();
+    }
+
     toggleEntities(deviceId) {
         if (this.expandedDevices.has(deviceId)) {
             this.expandedDevices.delete(deviceId);
         } else {
             this.expandedDevices.add(deviceId);
         }
+        this.requestUpdate();
+    }
+
+    renderDashboardPermissionsCard() {
+        if (this.isAnUser) {
+            return null;
+        }
+
+        const selectAllState = this.getDashboardSelectAllState('visible');
+
+        return html`
+            <ha-card class="dashboards-card collapsible-card" header="${this.translate("dashboard_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
+                <div class="card-toggle-icon" @click=${this.toggleDashboardsCard}>
+                    <ha-icon icon="${this.dashboardsCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                </div>
+                ${this.dashboardsCollapsed ? null : html`
+                    <div class="table-wrapper">
+                        ${this.dashboardsData.length === 0 ? html`
+                            <div class="empty-state">
+                                ${this.translate("dashboards_not_found")}
+                            </div>
+                        ` : html`
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>${this.translate("name")}</th>
+                                        <th>
+                                            <mwc-checkbox
+                                                .checked=${selectAllState === true}
+                                                .indeterminate=${selectAllState === 'indeterminate'}
+                                                @change=${(e) => this.handleDashboardSelectAll('visible', e)}
+                                                style="vertical-align: middle; margin-right: 4px;">
+                                            </mwc-checkbox>
+                                            <span style="vertical-align: middle;">${this.translate("visible")}</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${this.dashboardsWithState.map((dashboard) => html`
+                                        <tr>
+                                            <td>
+                                                <ha-button
+                                                    @click=${() => this.toggleDashboardViews(dashboard.id)}
+                                                    appearance="plain"
+                                                >
+                                                    ${dashboard.isExpanded ? "-" : "+"}
+                                                </ha-button>
+                                            </td>
+                                            <td>${dashboard.name || this.translate("unknown_dashboard")}</td>
+                                            <td>
+                                                <mwc-checkbox
+                                                    .checked="${dashboard.visible === true}"
+                                                    .indeterminate="${dashboard.visible === 'indeterminate'}"
+                                                    @change="${(e) => this.updateDashboardCheckbox(dashboard.id, 'visible', e.target.checked)}"
+                                                >
+                                                </mwc-checkbox>
+                                            </td>
+                                        </tr>
+                                        ${dashboard.isExpanded ? html`
+                                            <tr>
+                                                <td colspan="3">
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>${this.translate("name")}</th>
+                                                                <th>${this.translate("visible")}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            ${dashboard.views.length > 0 ? dashboard.views.map((view) => html`
+                                                                <tr>
+                                                                    <td>${view.name || this.translate("unknown_view")}</td>
+                                                                    <td>
+                                                                        <mwc-checkbox
+                                                                            .checked="${view.visible}"
+                                                                            @change="${(e) => this.updateViewCheckbox(dashboard.id, view.id, 'visible', e.target.checked)}"
+                                                                        >
+                                                                        </mwc-checkbox>
+                                                                    </td>
+                                                                </tr>
+                                                            `) : html`<tr><td colspan="2">${this.translate("views_not_found")}</td></tr>`}
+                                                        </tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        ` : ''}
+                                    `)}
+                                </tbody>
+                            </table>
+                        `}
+                    </div>
+                    <div class="card-footer">
+                        <ha-button
+                            @click=${this.save}
+                            .disabled=${this._isSaving}
+                        >
+                            ${this.translate("save")}
+                        </ha-button>
+                        <ha-button
+                            class="restart-button"
+                            variant="danger"
+                            @click=${this.restart}
+                            .disabled=${this._isSaving}
+                        >
+                            ${this.translate("restart")}
+                        </ha-button>
+                    </div>
+                `}
+            </ha-card>
+        `;
+    }
+
+    toggleDashboardsCard() {
+        this.dashboardsCollapsed = !this.dashboardsCollapsed;
         this.requestUpdate();
     }
 
@@ -835,8 +1238,10 @@ class AccessControlManager extends LitElement {
                                 </ha-dialog>
                             </div>
                         </div>
-                    </ha-card>`
+                    </ha-card>
+                    `
                 : html`
+                    ${this.renderDashboardPermissionsCard()}
                     <ha-card
                         class="entites-cards collapsible-card"
                         header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
@@ -846,7 +1251,7 @@ class AccessControlManager extends LitElement {
                         </div>
                         ${this.devicesCollapsed ? null : html`
                             <div class="table-wrapper">
-                                ${this._isLoading ? html`                            
+                                ${this._isLoading ? html`
                                     <div class="spinner-container">
                                         <div class="spinner"></div>
                                     </div>
@@ -860,7 +1265,7 @@ class AccessControlManager extends LitElement {
                                                         if (header === 'read' || header === 'write') {
                                                             const state = this.getSelectAllState(header);
                                                             return html`<th>
-                                                                <mwc-checkbox 
+                                                                <mwc-checkbox
                                                                     .checked=${state === true}
                                                                     .indeterminate=${state === 'indeterminate'}
                                                                     @change=${(e) => this.handleSelectAll(header, e)}
@@ -982,7 +1387,7 @@ class AccessControlManager extends LitElement {
                                                 if (header === 'read' || header === 'write') {
                                                     const state = this.getHelperSelectAllState(header);
                                                     return html`<th>
-                                                        <mwc-checkbox 
+                                                        <mwc-checkbox
                                                             .checked=${state === true}
                                                             .indeterminate=${state === 'indeterminate'}
                                                             @change=${(e) => this.handleHelperSelectAll(header, e)}
@@ -1053,7 +1458,7 @@ class AccessControlManager extends LitElement {
                                                 if (header === 'read' || header === 'write') {
                                                     const state = this.getEntitiesWithoutDevicesSelectAllState(header);
                                                     return html`<th>
-                                                        <mwc-checkbox 
+                                                        <mwc-checkbox
                                                             .checked=${state === true}
                                                             .indeterminate=${state === 'indeterminate'}
                                                             @change=${(e) => this.handleEntitiesWithoutDevicesSelectAll(header, e)}
@@ -1242,6 +1647,7 @@ class AccessControlManager extends LitElement {
 
             .group-card,
             .entites-cards,
+            .dashboards-card,
             .helpers-card,
             .entities-without-devices-card {
                 margin: 10px;
@@ -1304,16 +1710,21 @@ class AccessControlManager extends LitElement {
 
             .card-toggle-icon {
                 position: absolute;
-                top: 16px;
-                right: 16px;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 56px;
                 display: flex;
                 align-items: center;
-                justify-content: center;
+                justify-content: flex-end;
+                padding: 0 16px;
                 cursor: pointer;
+                z-index: 2;
             }
 
             .card-toggle-icon ha-icon {
                 --mdc-icon-size: 24px;
+                pointer-events: none;
             }
 
             table {
@@ -1346,6 +1757,7 @@ class AccessControlManager extends LitElement {
             .card-footer {
                 display: flex;
                 justify-content: flex-end;
+                gap: 8px;
                 padding: 16px;
                 border-bottom-left-radius: var(--ha-card-border-radius,12px);
                 border-bottom-right-radius: var(--ha-card-border-radius,12px);
@@ -1377,6 +1789,12 @@ class AccessControlManager extends LitElement {
                 to {
                 transform: rotate(360deg);
                 }
+            }
+
+            .empty-state {
+                padding: 24px;
+                text-align: center;
+                color: var(--secondary-text-color);
             }
         `;
     }

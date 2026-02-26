@@ -60,7 +60,7 @@
                 "name": "Geräteberechtigungen für"
             },
             "select_an_user_or_a_group": {
-                "name": "Bitte wählen Sie einen Benutzer oder eine Gruppe aus"
+                "name": "Bitte wählen Sie eine Gruppe aus"
             },
             "entities_not_found": {
                 "name": "Keine Entitäten gefunden"
@@ -82,6 +82,24 @@
             },
             "custom_group_warning": {
                 "name": "Achtung, Sie haben eine benutzerdefinierte Gruppe ohne deklarierte Richtlinien. Bitte legen Sie mindestens eine Richtlinie fest, bevor Sie Home Assistant neu starten"
+            },
+            "dashboard_permissions_for": {
+                "name": "Dashboard-Berechtigungen für"
+            },
+            "dashboards_not_found": {
+                "name": "Keine Dashboards gefunden"
+            },
+            "views_not_found": {
+                "name": "Keine Ansichten gefunden"
+            },
+            "unknown_view": {
+                "name": "Unbenannte Ansicht"
+            },
+            "unknown_dashboard": {
+                "name": "Unbenanntes Dashboard"
+            },
+            "visible": {
+                "name": "Sichtbar"
             },
             "helper_permissions_for": {
                 "name": "Helfer-Berechtigungen für"

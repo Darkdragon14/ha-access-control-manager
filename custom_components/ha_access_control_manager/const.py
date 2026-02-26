@@ -7,6 +7,11 @@ DEST_PATH_SCRIPT_JS = "www/community/ha-access-control-manager"
 AUTH_PATH = ".storage/auth"
 NEW_AUTH_PATH = ".storage/auth.new"
 SCRIPT_BASH = f"{BASE_PATH}/www/replace-auth.sh"
+LOVELACE_DASHBOARDS_PATH = ".storage/lovelace_dashboards"
+LOVELACE_STORAGE = ".storage/lovelace"
+LOVELACE_STORAGE_PREFIX = ".storage/lovelace."
+LOVELACE_STORAGE_DIR = ".storage"
+GROUP_DASHBOARD_PERMISSIONS_PATH = ".storage/ha_access_control_manager_dashboards"
 
 ICONS = [
     "mdi:lock","mdi:lock-open","mdi:key",

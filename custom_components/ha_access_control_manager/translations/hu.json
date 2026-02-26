@@ -60,7 +60,7 @@
                 "name": "Eszköz engedélye"
             },
             "select_an_user_or_a_group": {
-                "name": "Kérlek, válassz egy felhasználót vagy csoportot"
+                "name": "Kérlek, válassz egy csoportot"
             },
             "entities_not_found": {
                 "name": "Nem található entitás"
@@ -82,6 +82,24 @@
             },
             "custom_group_warning": {
                 "name": "Figyelem, van egy egyedi csoportod, aminek nincsenek szabályai. Kérlek, adj hozzá legalább egy szabályt, mielőtt újraindítod a Home Assistant-ot."
+            },
+            "dashboard_permissions_for": {
+                "name": "Dashboard engedélyei ehhez"
+            },
+            "dashboards_not_found": {
+                "name": "Nem található dashboard"
+            },
+            "views_not_found": {
+                "name": "Nem található nézet"
+            },
+            "unknown_view": {
+                "name": "Névtelen nézet"
+            },
+            "unknown_dashboard": {
+                "name": "Névtelen dashboard"
+            },
+            "visible": {
+                "name": "Látható"
             },
             "helper_permissions_for": {
                 "name": "Segédek engedélyei ehhez"
