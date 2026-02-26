@@ -60,7 +60,7 @@
                 "name": "Les droits d'accès pour"
             },
             "select_an_user_or_a_group": {
-                "name": "S'il vous plaît, sélectionnez un utilisateur ou un groupe"
+                "name": "S'il vous plaît, sélectionnez un groupe"
             },
             "entities_not_found": {
                 "name": "Aucune entité trouvée"

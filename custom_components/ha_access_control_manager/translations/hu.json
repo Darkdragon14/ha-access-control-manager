@@ -60,7 +60,7 @@
                 "name": "Eszköz engedélye"
             },
             "select_an_user_or_a_group": {
-                "name": "Kérlek, válassz egy felhasználót vagy csoportot"
+                "name": "Kérlek, válassz egy csoportot"
             },
             "entities_not_found": {
                 "name": "Nem található entitás"

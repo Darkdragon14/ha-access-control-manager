@@ -60,7 +60,7 @@
                 "name": "Permisos del dispositivo para"
             },
             "select_an_user_or_a_group": {
-                "name": "Por favor, seleccione un usuario o un grupo"
+                "name": "Por favor, seleccione un grupo"
             },
             "entities_not_found": {
                 "name": "No se encontraron entidades"
