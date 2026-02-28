@@ -56,6 +56,18 @@
             "cancel": {
                 "name": "Abbrechen"
             },
+            "duplicate": {
+                "name": "Duplizieren"
+            },
+            "duplicate_group": {
+                "name": "Gruppe duplizieren"
+            },
+            "duplicate_group_tooltip": {
+                "name": "Diese Gruppe duplizieren"
+            },
+            "copy_suffix": {
+                "name": "Kopie"
+            },
             "device_permissions_for": {
                 "name": "Geräteberechtigungen für"
             },
