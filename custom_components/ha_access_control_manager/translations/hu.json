@@ -56,6 +56,18 @@
             "cancel": {
                 "name": "Visszavonás"
             },
+            "duplicate": {
+                "name": "Duplikálás"
+            },
+            "duplicate_group": {
+                "name": "Csoport duplikálása"
+            },
+            "duplicate_group_tooltip": {
+                "name": "Csoport duplikálása"
+            },
+            "copy_suffix": {
+                "name": "másolat"
+            },
             "device_permissions_for": {
                 "name": "Eszköz engedélye"
             },

@@ -29,6 +29,9 @@ class AccessControlManager extends LitElement {
             needToSetPermissions: { type: Boolean },
             newGroupName: { type: String },
             openCreateGroup: { type: Boolean },
+            duplicateGroupDialogOpen: { type: Boolean },
+            duplicateGroupName: { type: String },
+            groupToDuplicate: { type: Object },
             searchTerm: { type: String },
             _isLoading: { type: Boolean },
             _isSaving: { type: Boolean },
@@ -62,6 +65,9 @@ class AccessControlManager extends LitElement {
         this.needToSetPermissions = false;
         this.newGroupName = '';
         this.openCreateGroup = false;
+        this.duplicateGroupDialogOpen = false;
+        this.duplicateGroupName = '';
+        this.groupToDuplicate = null;
         this.expandedDevices = new Set();
         this.expandedDashboards = new Set();
         this._dashboardsTemplate = [];
@@ -503,6 +509,127 @@ class AccessControlManager extends LitElement {
     
     handleNewGroupInput(e) {
         this.newGroupName = e.target.value;
+    }
+
+    getUniqueGroupName(baseName) {
+        const normalizedBaseName = (baseName || '').trim();
+        if (!normalizedBaseName) {
+            return '';
+        }
+
+        const existingNames = new Set(
+            this.dataGroups
+                .map(group => (group.name || '').trim().toLowerCase())
+                .filter(name => name)
+        );
+
+        if (!existingNames.has(normalizedBaseName.toLowerCase())) {
+            return normalizedBaseName;
+        }
+
+        let counter = 2;
+        let candidate = `${normalizedBaseName} ${counter}`;
+        while (existingNames.has(candidate.toLowerCase())) {
+            counter += 1;
+            candidate = `${normalizedBaseName} ${counter}`;
+        }
+
+        return candidate;
+    }
+
+    getSuggestedDuplicateGroupName(sourceGroupName) {
+        const fallbackGroupName = this.translate("group") || "Group";
+        const baseSourceName = (sourceGroupName || fallbackGroupName).trim();
+        const copySuffix = this.translate("copy_suffix") || "copy";
+        const duplicateBaseName = `${baseSourceName} (${copySuffix})`;
+        return this.getUniqueGroupName(duplicateBaseName);
+    }
+
+    sanitizeGroupSlug(value) {
+        const normalized = (value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/-{2,}/g, '-');
+
+        return normalized || 'group';
+    }
+
+    getUniqueGroupId(name) {
+        const baseId = `custom-group-${this.sanitizeGroupSlug(name)}`;
+        const existingIds = new Set(this.dataGroups.map(group => group.id));
+
+        if (!existingIds.has(baseId)) {
+            return baseId;
+        }
+
+        let counter = 2;
+        let candidate = `${baseId}-${counter}`;
+        while (existingIds.has(candidate)) {
+            counter += 1;
+            candidate = `${baseId}-${counter}`;
+        }
+
+        return candidate;
+    }
+
+    openDuplicateGroupDialog(group) {
+        if (!group) {
+            return;
+        }
+
+        this.groupToDuplicate = group;
+        this.duplicateGroupName = this.getSuggestedDuplicateGroupName(group.name);
+        this.duplicateGroupDialogOpen = true;
+    }
+
+    closeDuplicateGroupDialog() {
+        this.duplicateGroupDialogOpen = false;
+        this.duplicateGroupName = '';
+        this.groupToDuplicate = null;
+    }
+
+    handleDuplicateGroupInput(e) {
+        this.duplicateGroupName = e.target.value;
+    }
+
+    handleDuplicateGroupSave() {
+        const inputField = this.shadowRoot.querySelector('.duplicate-group-input');
+        if (!inputField || !inputField.reportValidity()) {
+            return;
+        }
+
+        if (!this.groupToDuplicate) {
+            return;
+        }
+
+        const newGroupName = this.duplicateGroupName.trim();
+        if (!newGroupName) {
+            return;
+        }
+
+        const sourceGroup = JSON.parse(JSON.stringify(this.groupToDuplicate));
+        const duplicatedGroup = {
+            ...sourceGroup,
+            id: this.getUniqueGroupId(newGroupName),
+            name: newGroupName,
+            dashboards: sourceGroup.dashboards || {}
+        };
+
+        this.closeDuplicateGroupDialog();
+        this._isSaving = true;
+        this.requestUpdate();
+
+        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: false, data: duplicatedGroup })
+            .then(data => {
+                this.loadAuths(data);
+            })
+            .finally(() => {
+                this._isSaving = false;
+                this.requestUpdate();
+            });
     }
 
     handleSearchInput(e) {
@@ -1183,6 +1310,18 @@ class AccessControlManager extends LitElement {
                                         />
                                         <span class="group-name">${group.name}</span>
                                     </div>
+                                    <div class="group-actions">
+                                        <ha-button
+                                            class="duplicate-group-button"
+                                            appearance="plain"
+                                            title="${this.translate("duplicate_group_tooltip")}" 
+                                            aria-label="${this.translate("duplicate_group_tooltip")}" 
+                                            @click="${() => this.openDuplicateGroupDialog(group)}"
+                                            .disabled=${this._isSaving}
+                                        >
+                                            <ha-icon icon="mdi:content-copy"></ha-icon>
+                                        </ha-button>
+                                    </div>
                                 </div>`
                             })}
                             <div class="new-group-input">
@@ -1232,6 +1371,39 @@ class AccessControlManager extends LitElement {
                                         dialogAction="cancel"
                                         slot="secondaryAction"
                                         @click="${(e) => this.openCreateGroup = false}"
+                                    >
+                                        ${this.translate("cancel")}
+                                    </ha-button>
+                                </ha-dialog>
+                                <ha-dialog
+                                    .open=${this.duplicateGroupDialogOpen}
+                                    heading="${this.translate("duplicate_group")}" 
+                                    @closed=${this.closeDuplicateGroupDialog}
+                                >
+                                    <div>
+                                        <ha-textfield
+                                            class="duplicate-group-input"
+                                            label="${this.translate("group_name")}" 
+                                            required
+                                            validationMessage="${this.translate("enter_group_name")}" 
+                                            .value="${this.duplicateGroupName}"
+                                            @input="${this.handleDuplicateGroupInput}"
+                                        ></ha-textfield>
+                                    </div>
+                                    <ha-button
+                                        appearance="plain"
+                                        dialogAction="save"
+                                        slot="primaryAction"
+                                        @click="${this.handleDuplicateGroupSave}"
+                                        .disabled=${this._isSaving}
+                                    >
+                                        ${this.translate("save")}
+                                    </ha-button>
+                                    <ha-button
+                                        appearance="plain"
+                                        dialogAction="cancel"
+                                        slot="secondaryAction"
+                                        @click="${this.closeDuplicateGroupDialog}"
                                     >
                                         ${this.translate("cancel")}
                                     </ha-button>
@@ -1685,6 +1857,14 @@ class AccessControlManager extends LitElement {
             .group-actions {
                 display: flex;
                 gap: 8px;
+            }
+
+            .duplicate-group-button {
+                min-width: 0;
+            }
+
+            .duplicate-group-button ha-icon {
+                --mdc-icon-size: 18px;
             }
 
             .new-group-input {
