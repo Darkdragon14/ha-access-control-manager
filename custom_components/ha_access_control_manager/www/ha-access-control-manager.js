@@ -575,8 +575,12 @@ class AccessControlManager extends LitElement {
         return candidate;
     }
 
+    isDefaultSystemGroup(group) {
+        return ['system-admin', 'system-users', 'system-read-only'].includes(group?.id);
+    }
+
     openDuplicateGroupDialog(group) {
-        if (!group) {
+        if (!group || this.isDefaultSystemGroup(group)) {
             return;
         }
 
@@ -1300,6 +1304,7 @@ class AccessControlManager extends LitElement {
                         <div class="group-list">
                             ${this.dataGroups.map(group => {
                                 const isChecked = this.selected.group_ids.includes(group.id);
+                                const isDefaultSystemGroup = this.isDefaultSystemGroup(group);
                                 return html`
                                 <div class="group-item">
                                     <div class="group-info">
@@ -1311,16 +1316,18 @@ class AccessControlManager extends LitElement {
                                         <span class="group-name">${group.name}</span>
                                     </div>
                                     <div class="group-actions">
-                                        <ha-button
-                                            class="duplicate-group-button"
-                                            appearance="plain"
-                                            title="${this.translate("duplicate_group_tooltip")}" 
-                                            aria-label="${this.translate("duplicate_group_tooltip")}" 
-                                            @click="${() => this.openDuplicateGroupDialog(group)}"
-                                            .disabled=${this._isSaving}
-                                        >
-                                            <ha-icon icon="mdi:content-copy"></ha-icon>
-                                        </ha-button>
+                                        ${isDefaultSystemGroup ? null : html`
+                                            <ha-button
+                                                class="duplicate-group-button"
+                                                appearance="plain"
+                                                title="${this.translate("duplicate_group_tooltip")}" 
+                                                aria-label="${this.translate("duplicate_group_tooltip")}" 
+                                                @click="${() => this.openDuplicateGroupDialog(group)}"
+                                                .disabled=${this._isSaving}
+                                            >
+                                                <ha-icon icon="mdi:content-copy"></ha-icon>
+                                            </ha-button>
+                                        `}
                                     </div>
                                 </div>`
                             })}
