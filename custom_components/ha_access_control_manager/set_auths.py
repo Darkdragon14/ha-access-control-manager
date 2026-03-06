@@ -16,6 +16,8 @@ from .const import (
     LOVELACE_STORAGE_PREFIX,
 )
 
+SYSTEM_GROUPS_WITH_FULL_DASHBOARD_ACCESS = {"system-admin", "system-users"}
+
 @websocket_api.websocket_command({
     vol.Required("type"): "ha_access_control/set_auths",
     vol.Required("isAnUser"): bool,
@@ -337,13 +339,55 @@ def _extract_user_group_ids(auth_data: dict[str, Any]) -> dict[str, list[str]]:
         if not isinstance(user_id, str) or not user_id:
             continue
 
-        raw_group_ids = user.get("group_ids")
-        if not isinstance(raw_group_ids, list):
-            user_group_ids[user_id] = []
+        user_group_ids[user_id] = _normalize_group_ids(user.get("group_ids"))
+
+    return user_group_ids
+
+
+def _normalize_group_ids(group_ids: Any) -> list[str]:
+    if not isinstance(group_ids, list):
+        return []
+
+    normalized_group_ids = [group_id for group_id in group_ids if isinstance(group_id, str) and group_id]
+    return list(dict.fromkeys(normalized_group_ids))
+
+
+def _merge_user_group_ids(
+    runtime_user_group_ids: dict[str, list[str]],
+    auth_user_group_ids: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    if runtime_user_group_ids:
+        merged_user_group_ids: dict[str, list[str]] = {}
+        for user_id, runtime_group_ids in runtime_user_group_ids.items():
+            merged_group_ids = runtime_group_ids + auth_user_group_ids.get(user_id, [])
+            merged_user_group_ids[user_id] = _normalize_group_ids(merged_group_ids)
+
+        return merged_user_group_ids
+
+    return {
+        user_id: _normalize_group_ids(group_ids)
+        for user_id, group_ids in auth_user_group_ids.items()
+        if isinstance(user_id, str) and user_id
+    }
+
+
+async def _load_runtime_user_group_ids(hass: HomeAssistant) -> dict[str, list[str]]:
+    user_group_ids: dict[str, list[str]] = {}
+
+    for user in await hass.auth.async_get_users():
+        if not getattr(user, "is_active", False):
             continue
 
-        group_ids = [group_id for group_id in raw_group_ids if isinstance(group_id, str) and group_id]
-        user_group_ids[user_id] = list(dict.fromkeys(group_ids))
+        if getattr(user, "system_generated", False):
+            continue
+
+        groups = getattr(user, "groups", [])
+        group_ids = [
+            group.id
+            for group in groups
+            if isinstance(getattr(group, "id", None), str) and group.id
+        ]
+        user_group_ids[user.id] = _normalize_group_ids(group_ids)
 
     return user_group_ids
 
@@ -376,9 +420,14 @@ def _resolve_allowed_user_ids_for_view(
     allowed_user_ids: list[str] = []
 
     for user_id, group_ids in user_group_ids.items():
+        normalized_group_ids = _normalize_group_ids(group_ids)
+        if any(group_id in SYSTEM_GROUPS_WITH_FULL_DASHBOARD_ACCESS for group_id in normalized_group_ids):
+            allowed_user_ids.append(user_id)
+            continue
+
         if any(
             _is_group_view_visible(dashboards_map.get(group_id), dashboard_id, view_id)
-            for group_id in group_ids
+            for group_id in normalized_group_ids
         ):
             allowed_user_ids.append(user_id)
 
@@ -446,7 +495,9 @@ async def _sync_group_dashboards_to_users(
     if not isinstance(auth_data, dict):
         return
 
-    user_group_ids = _extract_user_group_ids(auth_data)
+    auth_user_group_ids = _extract_user_group_ids(auth_data)
+    runtime_user_group_ids = await _load_runtime_user_group_ids(hass)
+    user_group_ids = _merge_user_group_ids(runtime_user_group_ids, auth_user_group_ids)
     if not user_group_ids:
         return
 
