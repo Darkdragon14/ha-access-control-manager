@@ -1353,7 +1353,7 @@ class AccessControlManager extends LitElement {
                                 </ha-button>
                                 <ha-dialog 
                                     .open=${this.openCreateGroup}
-                                    heading="${this.translate("create_new_group")}" 
+                                    header-title="${this.translate("create_new_group")}" 
                                 >
                                     <div>
                                         <ha-textfield 
@@ -1365,26 +1365,28 @@ class AccessControlManager extends LitElement {
                                             @input="${this.handleNewGroupInput}"
                                         ></ha-textfield>
                                     </div>
-                                    <ha-button
-                                        appearance="plain"
-                                        dialogAction="save"
-                                        slot="primaryAction"
-                                        @click="${this.handleNewGroupSave}"
-                                    >
-                                        ${this.translate("save")}
-                                    </ha-button>
-                                    <ha-button
-                                        appearance="plain"
-                                        dialogAction="cancel"
-                                        slot="secondaryAction"
-                                        @click="${(e) => this.openCreateGroup = false}"
-                                    >
-                                        ${this.translate("cancel")}
-                                    </ha-button>
+                                    <ha-dialog-footer slot="footer">
+                                        <ha-button
+                                            appearance="plain"
+                                            dialogAction="cancel"
+                                            slot="secondaryAction"
+                                            @click="${(e) => this.openCreateGroup = false}"
+                                        >
+                                            ${this.translate("cancel")}
+                                        </ha-button>
+                                        <ha-button
+                                            appearance="plain"
+                                            dialogAction="save"
+                                            slot="primaryAction"
+                                            @click="${this.handleNewGroupSave}"
+                                        >
+                                            ${this.translate("save")}
+                                        </ha-button>
+                                    </ha-dialog-footer>
                                 </ha-dialog>
                                 <ha-dialog
                                     .open=${this.duplicateGroupDialogOpen}
-                                    heading="${this.translate("duplicate_group")}" 
+                                    header-title="${this.translate("duplicate_group")}" 
                                     @closed=${this.closeDuplicateGroupDialog}
                                 >
                                     <div>
@@ -1397,23 +1399,25 @@ class AccessControlManager extends LitElement {
                                             @input="${this.handleDuplicateGroupInput}"
                                         ></ha-textfield>
                                     </div>
-                                    <ha-button
-                                        appearance="plain"
-                                        dialogAction="save"
-                                        slot="primaryAction"
-                                        @click="${this.handleDuplicateGroupSave}"
-                                        .disabled=${this._isSaving}
-                                    >
-                                        ${this.translate("save")}
-                                    </ha-button>
-                                    <ha-button
-                                        appearance="plain"
-                                        dialogAction="cancel"
-                                        slot="secondaryAction"
-                                        @click="${this.closeDuplicateGroupDialog}"
-                                    >
-                                        ${this.translate("cancel")}
-                                    </ha-button>
+                                    <ha-dialog-footer slot="footer">
+                                        <ha-button
+                                            appearance="plain"
+                                            dialogAction="cancel"
+                                            slot="secondaryAction"
+                                            @click="${this.closeDuplicateGroupDialog}"
+                                        >
+                                            ${this.translate("cancel")}
+                                        </ha-button>
+                                        <ha-button
+                                            appearance="plain"
+                                            dialogAction="save"
+                                            slot="primaryAction"
+                                            @click="${this.handleDuplicateGroupSave}"
+                                            .disabled=${this._isSaving}
+                                        >
+                                            ${this.translate("save")}
+                                        </ha-button>
+                                    </ha-dialog-footer>
                                 </ha-dialog>
                             </div>
                         </div>
@@ -1695,23 +1699,25 @@ class AccessControlManager extends LitElement {
         </div>
         <ha-dialog
             .open=${this.restartDialogOpen}
-            heading="${this.translate("confirm_restart_title")}"
+            header-title="${this.translate("confirm_restart_title")}"
             @closed=${this.closeRestartDialog}
         >
             <p>${this.translate("confirm_restart_description")}</p>
-            <ha-button
-                variant="danger"
-                slot="primaryAction"
-                @click=${this.confirmRestart}
-            >
-                ${this.translate("confirm")}
-            </ha-button>
-            <ha-button
-                slot="secondaryAction"
-                @click=${this.closeRestartDialog}
-            >
-                ${this.translate("cancel")}
-            </ha-button>
+            <ha-dialog-footer slot="footer">
+                <ha-button
+                    slot="secondaryAction"
+                    @click=${this.closeRestartDialog}
+                >
+                    ${this.translate("cancel")}
+                </ha-button>
+                <ha-button
+                    variant="danger"
+                    slot="primaryAction"
+                    @click=${this.confirmRestart}
+                >
+                    ${this.translate("confirm")}
+                </ha-button>
+            </ha-dialog-footer>
         </ha-dialog>
         `
     }
