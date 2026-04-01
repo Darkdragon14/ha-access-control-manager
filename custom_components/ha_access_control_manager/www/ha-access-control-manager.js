@@ -1,8 +1,9 @@
-import {
-    LitElement,
-    html,
-    css,
-} from "https://unpkg.com/lit-element@2.4.0/lit-element.js?module";
+const HaLitElement = customElements.get("ha-panel-lovelace")
+    || customElements.get("home-assistant-main")
+    || customElements.get("ha-sidebar");
+const LitElement = window.LitElement || Object.getPrototypeOf(HaLitElement);
+const html = window.html || LitElement.prototype.html;
+const css = window.css || LitElement.prototype.css;
 
 class AccessControlManager extends LitElement {
     static get properties() {
@@ -12,13 +13,9 @@ class AccessControlManager extends LitElement {
             route: { type: Object },
             panel: { type: Object },
             users: { type: Array },
-            tableHeaders: { type: Array },
             tableData: { type: Array },
-            dashboardsTableHeaders: { type: Array },
             dashboardsData: { type: Array },
-            helperTableHeaders: { type: Array },
             helperTableData: { type: Array },
-            entitiesWithoutDevicesHeaders: { type: Array },
             entitiesWithoutDevices: { type: Array },
             dataUsers: { type: Array },
             dataGroups: { type: Array },
@@ -32,26 +29,19 @@ class AccessControlManager extends LitElement {
             duplicateGroupDialogOpen: { type: Boolean },
             duplicateGroupName: { type: String },
             groupToDuplicate: { type: Object },
-            searchTerm: { type: String },
-            _isLoading: { type: Boolean },
             _isSaving: { type: Boolean },
             restartDialogOpen: { type: Boolean },
             dashboardsCollapsed: { type: Boolean },
             devicesCollapsed: { type: Boolean },
-            helpersCollapsed: { type: Boolean },
-            entitiesWithoutDevicesCollapsed: { type: Boolean }
+            entitiesCollapsed: { type: Boolean },
+            helpersCollapsed: { type: Boolean }
         };
     }
 
     constructor() {
         super();
         this.users = [];
-        this.tableHeaders = ["name", "read", "write"];
-        this.tableHeadersEntities = ["name", "entity_id", "read", "write"];
-        this.helperTableHeaders = ["name", "entity_id", "read", "write"];
-        this.entitiesWithoutDevicesHeaders = ["name", "entity_id", "read", "write"];
         this.tableData = [];
-        this.dashboardsTableHeaders = ["name", "visible"];
         this.dashboardsData = [];
         this.helperTableData = [];
         this.entitiesWithoutDevices = [];
@@ -68,19 +58,14 @@ class AccessControlManager extends LitElement {
         this.duplicateGroupDialogOpen = false;
         this.duplicateGroupName = '';
         this.groupToDuplicate = null;
-        this.expandedDevices = new Set();
-        this.expandedDashboards = new Set();
         this._dashboardsTemplate = [];
         this._pendingDashboardSelection = null;
-        this.searchTerm = '';
-        this._isLoading = false;
         this._isSaving = false;
-        this.searchTimeout = null;
         this.restartDialogOpen = false;
         this.dashboardsCollapsed = true;
         this.devicesCollapsed = true;
+        this.entitiesCollapsed = true;
         this.helpersCollapsed = true;
-        this.entitiesWithoutDevicesCollapsed = true;
     }
 
     translate(key) {
@@ -119,6 +104,8 @@ class AccessControlManager extends LitElement {
                     entities: device.entities,
                     name: device.name,
                     id: device.id,
+                    integration: this.getDeviceIntegrationLabel(device),
+                    area: this.getDeviceAreaLabel(device),
                     read: false,
                     write: false
                 }));
@@ -128,6 +115,28 @@ class AccessControlManager extends LitElement {
                 this.loadData(this.selected);
             }
         });
+    }
+
+    getDeviceIntegrationLabel(device) {
+        if (device.integration) {
+            return device.integration;
+        }
+
+        const entityPlatforms = [...new Set(
+            (device.entities || [])
+                .map(entity => entity.platform)
+                .filter(Boolean)
+        )];
+
+        return entityPlatforms.join(', ');
+    }
+
+    getDeviceAreaLabel(device) {
+        if (device.area) {
+            return device.area;
+        }
+
+        return (device.entities || []).find(entity => entity.area)?.area || '';
     }
 
     fetchDashboards() {
@@ -331,6 +340,17 @@ class AccessControlManager extends LitElement {
                 entity.write = false;
             });
         });
+        this.helperTableData = this.helperTableData.map(helper => ({
+            ...helper,
+            read: false,
+            write: false
+        }));
+        this.entitiesWithoutDevices = this.entitiesWithoutDevices.map(entity => ({
+            ...entity,
+            read: false,
+            write: false
+        }));
+        this.loadDashboardPermissions();
         this.tableData = [...this.tableData];
         this.requestUpdate();
     }
@@ -636,76 +656,318 @@ class AccessControlManager extends LitElement {
             });
     }
 
-    handleSearchInput(e) {
-        this.searchTerm = e.target.value;
-        this._isLoading = true;
-        clearTimeout(this.searchTimeout);
-        this.searchTimeout = setTimeout(() => {
-            this._isLoading = false;
-        }, 500);
+    get deviceColumns() {
+        return {
+            name: {
+                title: this.translate("name"),
+                sortable: true,
+                filterable: true,
+                flex: 2,
+            },
+            integration: {
+                title: this.translate("integration"),
+                sortable: true,
+                filterable: true,
+                flex: 1.3,
+            },
+            area: {
+                title: this.translate("area"),
+                sortable: true,
+                filterable: true,
+                flex: 1.2,
+            },
+            read: {
+                title: this.translate("read"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.read === true}
+                        .indeterminate=${row.read === 'indeterminate'}
+                        @change=${(event) => this.updateCheckbox(row.id, 'read', event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+            write: {
+                title: this.translate("write"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.write === true}
+                        .indeterminate=${row.write === 'indeterminate'}
+                        @change=${(event) => this.updateCheckbox(row.id, 'write', event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+        };
     }
 
-    get processedTableData() {
-        console.log("Processing table data with search term:", this.searchTerm);
-        
-        const searchTermLower = this.searchTerm ? this.searchTerm.toLowerCase() : null;
-    
-        if (!searchTermLower) {
-            return this.tableData.map(device => ({
-                ...device,
-                displayEntities: device.entities,
-                isExpanded: this.expandedDevices.has(device.id)
-            }));
-        }
-    
-        return this.tableData.map(device => {
-            const deviceNameMatch = device.name.toLowerCase().includes(searchTermLower);
-    
-            const matchingEntities = device.entities.filter(entity =>
-                (entity.name && entity.name.toLowerCase().includes(searchTermLower)) ||
-                (entity.original_name && entity.original_name.toLowerCase().includes(searchTermLower)) ||
-                (entity.entity_id && entity.entity_id.toLowerCase().includes(searchTermLower))
-            );
-    
-            if (!deviceNameMatch && matchingEntities.length === 0) {
-                return null;
-            }
-    
-            const displayEntities = deviceNameMatch ? device.entities : matchingEntities;
-            const autoExpanded = !deviceNameMatch && matchingEntities.length > 0;
-            const isExpanded = this.expandedDevices.has(device.id) || autoExpanded;
-    
-            return {
-                ...device,
-                displayEntities,
-                isExpanded
-            };
-        }).filter(Boolean);
-    }
-
-    get dashboardsWithState() {
-        return this.dashboardsData.map(dashboard => ({
-            ...dashboard,
-            views: dashboard.views || [],
-            isExpanded: this.expandedDashboards.has(dashboard.id)
+    get deviceRows() {
+        return this.tableData.map(device => ({
+            id: device.id,
+            name: device.name,
+            integration: device.integration || '',
+            area: device.area || '',
+            read: device.read,
+            write: device.write,
         }));
     }
 
-    get processedEntitiesWithoutDevices() {
-        const searchTermLower = this.searchTerm ? this.searchTerm.toLowerCase() : null;
-        if (!this.entitiesWithoutDevices) {
-            return [];
-        }
+    get entityColumns() {
+        return {
+            name: {
+                title: this.translate("name"),
+                sortable: true,
+                filterable: true,
+                flex: 2,
+            },
+            original_name: {
+                title: "original_name",
+                hidden: true,
+                filterable: true,
+            },
+            entity_id: {
+                title: this.translate("entity_id"),
+                sortable: true,
+                filterable: true,
+                flex: 2,
+            },
+            device_name: {
+                title: this.translate("device"),
+                sortable: true,
+                filterable: true,
+                flex: 1.5,
+            },
+            integration: {
+                title: this.translate("integration"),
+                sortable: true,
+                filterable: true,
+                flex: 1.3,
+            },
+            area: {
+                title: this.translate("area"),
+                sortable: true,
+                filterable: true,
+                flex: 1.2,
+            },
+            read: {
+                title: this.translate("read"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.read === true}
+                        @change=${(event) => this.updateEntityRowCheckbox(row, 'read', event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+            write: {
+                title: this.translate("write"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.write === true}
+                        @change=${(event) => this.updateEntityRowCheckbox(row, 'write', event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+        };
+    }
 
-        if (!searchTermLower) {
-            return this.entitiesWithoutDevices;
-        }
-
-        return this.entitiesWithoutDevices.filter(entity =>
-            (entity.name && entity.name.toLowerCase().includes(searchTermLower)) ||
-            (entity.original_name && entity.original_name.toLowerCase().includes(searchTermLower)) ||
-            (entity.entity_id && entity.entity_id.toLowerCase().includes(searchTermLower))
+    get entityRows() {
+        const entityRows = this.tableData.flatMap(device =>
+            device.entities.map(entity => ({
+                id: entity.entity_id,
+                entity_id: entity.entity_id,
+                name: this.getEntityDisplayName(entity),
+                original_name: entity.original_name || '',
+                device_id: device.id,
+                device_name: device.name,
+                integration: device.integration || entity.platform || '',
+                area: entity.area || device.area || '',
+                read: entity.read,
+                write: entity.write,
+            }))
         );
+
+        const withoutDeviceLabel = this.translate("without_device") || 'Without device';
+        const orphanRows = (this.entitiesWithoutDevices || []).map(entity => ({
+            id: entity.entity_id,
+            entity_id: entity.entity_id,
+            name: this.getEntityDisplayName(entity),
+            original_name: entity.original_name || '',
+            device_id: '',
+            device_name: withoutDeviceLabel,
+            integration: entity.platform || '',
+            area: entity.area || '',
+            read: entity.read,
+            write: entity.write,
+        }));
+
+        return [...entityRows, ...orphanRows];
+    }
+
+    getEntityDisplayName(entity) {
+        return entity.name === 'Unknown'
+            ? entity.original_name || entity.entity_id
+            : entity.name;
+    }
+
+    get helperColumns() {
+        return {
+            name: {
+                title: this.translate("name"),
+                sortable: true,
+                filterable: true,
+                flex: 1.8,
+            },
+            entity_id: {
+                title: this.translate("entity_id"),
+                sortable: true,
+                filterable: true,
+                flex: 2,
+            },
+            helper_type_label: {
+                title: this.translate("type"),
+                sortable: true,
+                filterable: true,
+                flex: 1.2,
+            },
+            area: {
+                title: this.translate("area"),
+                sortable: true,
+                filterable: true,
+                flex: 1.2,
+            },
+            read: {
+                title: this.translate("read"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.read === true}
+                        @change=${(event) => this.updateHelperCheckbox(row.entity_id, 'read', event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+            write: {
+                title: this.translate("write"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.write === true}
+                        @change=${(event) => this.updateHelperCheckbox(row.entity_id, 'write', event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+        };
+    }
+
+    get helperRows() {
+        return (this.helperTableData || []).map(helper => ({
+            id: helper.entity_id,
+            entity_id: helper.entity_id,
+            name: helper.name === 'Unknown' ? helper.entity_id : helper.name,
+            helper_type_label: this.formatHelperType(helper.helper_type),
+            area: helper.area || '',
+            read: helper.read,
+            write: helper.write,
+        }));
+    }
+
+    formatHelperType(helperType) {
+        return (helperType || '')
+            .split('_')
+            .filter(Boolean)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    get dashboardViewColumns() {
+        return {
+            dashboard_name: {
+                title: this.translate("dashboard"),
+                sortable: true,
+                filterable: true,
+                flex: 1.5,
+            },
+            name: {
+                title: this.translate("view"),
+                sortable: true,
+                filterable: true,
+                flex: 1.5,
+            },
+            path: {
+                title: this.translate("path"),
+                sortable: true,
+                filterable: true,
+                flex: 1.2,
+            },
+            visible: {
+                title: this.translate("visible"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.visible === true}
+                        @change=${(event) => this.updateDashboardViewRowCheckbox(row, event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+        };
+    }
+
+    get dashboardViewRows() {
+        const unknownDashboard = this.translate("unknown_dashboard");
+        const entireDashboard = this.translate("entire_dashboard");
+
+        return (this.dashboardsData || []).flatMap(dashboard => {
+            const dashboardName = dashboard.name || unknownDashboard;
+            const dashboardPath = dashboard.url_path || '';
+
+            if (!dashboard.views || dashboard.views.length === 0) {
+                return [{
+                    id: `${dashboard.id}__dashboard`,
+                    dashboard_id: dashboard.id,
+                    view_id: '',
+                    dashboard_name: dashboardName,
+                    name: entireDashboard,
+                    path: dashboardPath,
+                    visible: dashboard.visible === true,
+                }];
+            }
+
+            return dashboard.views.map(view => ({
+                id: `${dashboard.id}__${view.id}`,
+                dashboard_id: dashboard.id,
+                view_id: view.id,
+                dashboard_name: dashboardName,
+                name: view.name || this.translate("unknown_view"),
+                path: view.path || dashboardPath,
+                visible: view.visible === true,
+            }));
+        });
+    }
+
+    updateEntityRowCheckbox(row, field, newState) {
+        if (row.device_id) {
+            this.updateEntityCheckbox(row.device_id, row.entity_id, field, newState);
+            return;
+        }
+
+        this.updateEntitiesWithoutDevicesCheckbox(row.entity_id, field, newState);
+    }
+
+    updateDashboardViewRowCheckbox(row, newState) {
+        if (row.view_id) {
+            this.updateViewCheckbox(row.dashboard_id, row.view_id, 'visible', newState);
+            return;
+        }
+
+        this.updateDashboardCheckbox(row.dashboard_id, 'visible', newState);
     }
 
     displayCustomGroupWarning() {
@@ -717,67 +979,6 @@ class AccessControlManager extends LitElement {
                 }
             }
         })
-    }
-
-    getSelectAllState(field) {
-        const filteredData = this.processedTableData;
-        if (filteredData.length === 0) {
-            return false;
-        }
-        const states = filteredData.map(item => item[field]);
-        const allChecked = states.every(val => val === true);
-        if (allChecked) return true;
-        const someChecked = states.some(val => val === true || val === 'indeterminate');
-        if (someChecked) return 'indeterminate';
-        return false;
-    }
-
-    handleSelectAll(field, event) {
-        const isChecked = event.target.checked;
-        const filteredData = this.processedTableData;
-        
-        const filteredIds = new Set(filteredData.map(item => item.id));
-        this.tableData.forEach(item => {
-            if (filteredIds.has(item.id)) {
-                item[field] = isChecked;
-                item.entities.forEach(entity => {
-                    entity[field] = isChecked;
-                });
-            }
-        });
-        this.tableData = [...this.tableData];
-        this.requestUpdate();
-    }
-
-    getDashboardSelectAllState(field) {
-        if (this.dashboardsData.length === 0) {
-            return false;
-        }
-
-        const states = this.dashboardsData.map(item => item[field]);
-        const allChecked = states.every(val => val === true);
-        if (allChecked) {
-            return true;
-        }
-
-        const someChecked = states.some(val => val === true || val === 'indeterminate');
-        if (someChecked) {
-            return 'indeterminate';
-        }
-
-        return false;
-    }
-
-    handleDashboardSelectAll(field, event) {
-        const isChecked = event.target.checked;
-        this.dashboardsData.forEach(item => {
-            item[field] = isChecked;
-            (item.views || []).forEach(view => {
-                view[field] = isChecked;
-            });
-        });
-        this.dashboardsData = [...this.dashboardsData];
-        this.requestUpdate();
     }
 
     collectDashboardPermissions() {
@@ -802,59 +1003,12 @@ class AccessControlManager extends LitElement {
         return result;
     }
 
-    getHelperSelectAllState(field) {
-        if (!this.helperTableData || this.helperTableData.length === 0) {
-            return false;
-        }
-        const states = this.helperTableData.map(item => item[field]);
-        const allChecked = states.every(val => val === true);
-        if (allChecked) return true;
-        const someChecked = states.some(val => val === true);
-        if (someChecked) return 'indeterminate';
-        return false;
-    }
-
-    handleHelperSelectAll(field, event) {
-        const isChecked = event.target.checked;
-        this.helperTableData = this.helperTableData.map(helper => ({
-            ...helper,
-            [field]: isChecked
-        }));
-        this.requestUpdate();
-    }
-
     updateHelperCheckbox(entityId, field, newState) {
         this.helperTableData = this.helperTableData.map(helper => {
             if (helper.entity_id !== entityId) {
                 return helper;
             }
             return { ...helper, [field]: newState };
-        });
-        this.requestUpdate();
-    }
-
-    getEntitiesWithoutDevicesSelectAllState(field) {
-        const filteredData = this.processedEntitiesWithoutDevices;
-        if (!filteredData || filteredData.length === 0) {
-            return false;
-        }
-        const states = filteredData.map(item => item[field]);
-        const allChecked = states.every(val => val === true);
-        if (allChecked) return true;
-        const someChecked = states.some(val => val === true);
-        if (someChecked) return 'indeterminate';
-        return false;
-    }
-
-    handleEntitiesWithoutDevicesSelectAll(field, event) {
-        const isChecked = event.target.checked;
-        const filteredData = this.processedEntitiesWithoutDevices;
-        const filteredIds = new Set(filteredData.map(entity => entity.entity_id));
-        this.entitiesWithoutDevices = this.entitiesWithoutDevices.map(entity => {
-            if (!filteredIds.has(entity.entity_id)) {
-                return entity;
-            }
-            return { ...entity, [field]: isChecked };
         });
         this.requestUpdate();
     }
@@ -962,18 +1116,7 @@ class AccessControlManager extends LitElement {
         const device = this.tableData.find(d => d.id === deviceId);
         if (!device) return;
 
-        const searchTermLower = this.searchTerm ? this.searchTerm.toLowerCase() : null;
-        let entitiesToUpdate = device.entities;
-
-        if (searchTermLower && !device.name.toLowerCase().includes(searchTermLower)) {
-            entitiesToUpdate = device.entities.filter(entity =>
-                (entity.name && entity.name.toLowerCase().includes(searchTermLower)) ||
-                (entity.original_name && entity.original_name.toLowerCase().includes(searchTermLower)) ||
-                (entity.entity_id && entity.entity_id.toLowerCase().includes(searchTermLower))
-            );
-        }
-
-        entitiesToUpdate.forEach(entity => {
+        device.entities.forEach(entity => {
             entity[field] = newState;
         });
 
@@ -1055,30 +1198,10 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
-    toggleDashboardViews(dashboardId) {
-        if (this.expandedDashboards.has(dashboardId)) {
-            this.expandedDashboards.delete(dashboardId);
-        } else {
-            this.expandedDashboards.add(dashboardId);
-        }
-        this.requestUpdate();
-    }
-
-    toggleEntities(deviceId) {
-        if (this.expandedDevices.has(deviceId)) {
-            this.expandedDevices.delete(deviceId);
-        } else {
-            this.expandedDevices.add(deviceId);
-        }
-        this.requestUpdate();
-    }
-
     renderDashboardPermissionsCard() {
         if (this.isAnUser) {
             return null;
         }
-
-        const selectAllState = this.getDashboardSelectAllState('visible');
 
         return html`
             <ha-card class="dashboards-card collapsible-card" header="${this.translate("dashboard_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
@@ -1086,98 +1209,20 @@ class AccessControlManager extends LitElement {
                     <ha-icon icon="${this.dashboardsCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
                 </div>
                 ${this.dashboardsCollapsed ? null : html`
-                    <div class="table-wrapper">
-                        ${this.dashboardsData.length === 0 ? html`
-                            <div class="empty-state">
-                                ${this.translate("dashboards_not_found")}
-                            </div>
-                        ` : html`
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th></th>
-                                        <th>${this.translate("name")}</th>
-                                        <th>
-                                            <mwc-checkbox
-                                                .checked=${selectAllState === true}
-                                                .indeterminate=${selectAllState === 'indeterminate'}
-                                                @change=${(e) => this.handleDashboardSelectAll('visible', e)}
-                                                style="vertical-align: middle; margin-right: 4px;">
-                                            </mwc-checkbox>
-                                            <span style="vertical-align: middle;">${this.translate("visible")}</span>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${this.dashboardsWithState.map((dashboard) => html`
-                                        <tr>
-                                            <td>
-                                                <ha-button
-                                                    @click=${() => this.toggleDashboardViews(dashboard.id)}
-                                                    appearance="plain"
-                                                >
-                                                    ${dashboard.isExpanded ? "-" : "+"}
-                                                </ha-button>
-                                            </td>
-                                            <td>${dashboard.name || this.translate("unknown_dashboard")}</td>
-                                            <td>
-                                                <mwc-checkbox
-                                                    .checked="${dashboard.visible === true}"
-                                                    .indeterminate="${dashboard.visible === 'indeterminate'}"
-                                                    @change="${(e) => this.updateDashboardCheckbox(dashboard.id, 'visible', e.target.checked)}"
-                                                >
-                                                </mwc-checkbox>
-                                            </td>
-                                        </tr>
-                                        ${dashboard.isExpanded ? html`
-                                            <tr>
-                                                <td colspan="3">
-                                                    <table>
-                                                        <thead>
-                                                            <tr>
-                                                                <th>${this.translate("name")}</th>
-                                                                <th>${this.translate("visible")}</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            ${dashboard.views.length > 0 ? dashboard.views.map((view) => html`
-                                                                <tr>
-                                                                    <td>${view.name || this.translate("unknown_view")}</td>
-                                                                    <td>
-                                                                        <mwc-checkbox
-                                                                            .checked="${view.visible}"
-                                                                            @change="${(e) => this.updateViewCheckbox(dashboard.id, view.id, 'visible', e.target.checked)}"
-                                                                        >
-                                                                        </mwc-checkbox>
-                                                                    </td>
-                                                                </tr>
-                                                            `) : html`<tr><td colspan="2">${this.translate("views_not_found")}</td></tr>`}
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                        ` : ''}
-                                    `)}
-                                </tbody>
-                            </table>
-                        `}
+                    <div class="data-table-section">
+                        <div class="data-table-container dashboard-views-table-container">
+                            <ha-data-table
+                                class="permissions-data-table"
+                                .hass=${this.hass}
+                                .id=${'id'}
+                                .columns=${this.dashboardViewColumns}
+                                .data=${this.dashboardViewRows}
+                                .searchLabel=${this.translate("search_dashboard_views")}
+                                .noDataText=${this.translate("views_not_found")}
+                            ></ha-data-table>
+                        </div>
                     </div>
-                    <div class="card-footer">
-                        <ha-button
-                            @click=${this.save}
-                            .disabled=${this._isSaving}
-                        >
-                            ${this.translate("save")}
-                        </ha-button>
-                        <ha-button
-                            class="restart-button"
-                            variant="danger"
-                            @click=${this.restart}
-                            .disabled=${this._isSaving}
-                        >
-                            ${this.translate("restart")}
-                        </ha-button>
-                    </div>
+                    ${this.renderPermissionsCardFooter()}
                 `}
             </ha-card>
         `;
@@ -1193,8 +1238,8 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
-    toggleEntitiesWithoutDevicesCard() {
-        this.entitiesWithoutDevicesCollapsed = !this.entitiesWithoutDevicesCollapsed;
+    toggleEntitiesCard() {
+        this.entitiesCollapsed = !this.entitiesCollapsed;
         this.requestUpdate();
     }
 
@@ -1203,8 +1248,127 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    renderPermissionsCardFooter() {
+        return html`
+            <div class="card-footer">
+                <ha-button
+                    @click=${this.save}
+                    .disabled=${this._isSaving}
+                >
+                    ${this.translate("save")}
+                </ha-button>
+                <ha-button
+                    class="restart-button"
+                    variant="danger"
+                    @click=${this.restart}
+                    .disabled=${this._isSaving}
+                >
+                    ${this.translate("restart")}
+                </ha-button>
+            </div>
+        `;
+    }
+
+    renderDevicesPermissionsCard() {
+        if (this.isAnUser) {
+            return null;
+        }
+
+        return html`
+            <ha-card
+                class="entites-cards collapsible-card"
+                header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
+            >
+                <div class="card-toggle-icon" @click=${this.toggleDevicesCard}>
+                    <ha-icon icon="${this.devicesCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                </div>
+                ${this.devicesCollapsed ? null : html`
+                    <div class="data-table-section">
+                        <div class="data-table-container devices-table-container">
+                            <ha-data-table
+                                class="permissions-data-table"
+                                .hass=${this.hass}
+                                .id=${'id'}
+                                .columns=${this.deviceColumns}
+                                .data=${this.deviceRows}
+                                .searchLabel=${this.translate("search_devices")}
+                                .noDataText=${this.translate("devices_not_found")}
+                            ></ha-data-table>
+                        </div>
+                    </div>
+                    ${this.renderPermissionsCardFooter()}
+                `}
+            </ha-card>
+        `;
+    }
+
+    renderEntitiesPermissionsCard() {
+        if (this.isAnUser) {
+            return null;
+        }
+
+        return html`
+            <ha-card
+                class="entities-card collapsible-card"
+                header="${this.translate("entity_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
+            >
+                <div class="card-toggle-icon" @click=${this.toggleEntitiesCard}>
+                    <ha-icon icon="${this.entitiesCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                </div>
+                ${this.entitiesCollapsed ? null : html`
+                    <div class="data-table-section">
+                        <div class="data-table-container entities-table-container">
+                            <ha-data-table
+                                class="permissions-data-table"
+                                .hass=${this.hass}
+                                .id=${'id'}
+                                .columns=${this.entityColumns}
+                                .data=${this.entityRows}
+                                .searchLabel=${this.translate("search_entities")}
+                                .noDataText=${this.translate("entities_not_found")}
+                            ></ha-data-table>
+                        </div>
+                    </div>
+                    ${this.renderPermissionsCardFooter()}
+                `}
+            </ha-card>
+        `;
+    }
+
+    renderHelpersPermissionsCard() {
+        if (this.isAnUser) {
+            return null;
+        }
+
+        return html`
+            <ha-card
+                class="helpers-card collapsible-card"
+                header="${this.translate("helper_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
+            >
+                <div class="card-toggle-icon" @click=${this.toggleHelpersCard}>
+                    <ha-icon icon="${this.helpersCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                </div>
+                ${this.helpersCollapsed ? null : html`
+                    <div class="data-table-section">
+                        <div class="data-table-container helpers-table-container">
+                            <ha-data-table
+                                class="permissions-data-table"
+                                .hass=${this.hass}
+                                .id=${'id'}
+                                .columns=${this.helperColumns}
+                                .data=${this.helperRows}
+                                .searchLabel=${this.translate("search_helpers")}
+                                .noDataText=${this.translate("helpers_not_found")}
+                            ></ha-data-table>
+                        </div>
+                    </div>
+                    ${this.renderPermissionsCardFooter()}
+                `}
+            </ha-card>
+        `;
+    }
+
     render() {
-        const entitiesWithoutDevicesTitle = this.translate("entities_without_devices_permissions_for") || "Entities without devices permissions for";
         return html`
         <div>
             <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
@@ -1282,13 +1446,6 @@ class AccessControlManager extends LitElement {
                             >
                                 ${this.translate("restart")}
                             </ha-button>
-
-                            <ha-textfield
-                                class="search-input"
-                                label="${this.translate("search_by_name")}"
-                                .value=${this.searchTerm}
-                                @input=${this.handleSearchInput}
-                            ></ha-textfield>
                         </div>
                     </div>
                 </ha-card>
@@ -1425,276 +1582,10 @@ class AccessControlManager extends LitElement {
                     `
                 : html`
                     ${this.renderDashboardPermissionsCard()}
-                    <ha-card
-                        class="entites-cards collapsible-card"
-                        header="${this.translate("device_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
-                    >
-                        <div class="card-toggle-icon" @click=${this.toggleDevicesCard}>
-                            <ha-icon icon="${this.devicesCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
-                        </div>
-                        ${this.devicesCollapsed ? null : html`
-                            <div class="table-wrapper">
-                                ${this._isLoading ? html`
-                                    <div class="spinner-container">
-                                        <div class="spinner"></div>
-                                    </div>
-                                ` : html`
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th></th>
-                                                ${this.tableHeaders.map(
-                                                    (header) => {
-                                                        if (header === 'read' || header === 'write') {
-                                                            const state = this.getSelectAllState(header);
-                                                            return html`<th>
-                                                                <mwc-checkbox
-                                                                    .checked=${state === true}
-                                                                    .indeterminate=${state === 'indeterminate'}
-                                                                    @change=${(e) => this.handleSelectAll(header, e)}
-                                                                    style="vertical-align: middle; margin-right: 4px;">
-                                                                </mwc-checkbox>
-                                                                <span style="vertical-align: middle;">${this.translate(header)}</span>
-                                                            </th>`
-                                                        }
-                                                        return html`<th>${this.translate(header)}</th>`
-                                                    }
-                                                )}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${this.processedTableData.map(
-                                            (item) => html`
-                                                <tr>
-                                                    <td>
-                                                        <ha-button
-                                                            @click=${() => this.toggleEntities(item.id)}
-                                                            appearance="plain"
-                                                        >
-                                                            ${item.isExpanded ? "-" : "+"}
-                                                        </ha-button>
-                                                    </td>
-                                                    <td>${item[this.tableHeaders[0]]}</td>
-                                                    <td>
-                                                        <mwc-checkbox
-                                                            .checked="${item.read === true}"
-                                                            .indeterminate="${item.read === 'indeterminate'}"
-                                                            @change="${(e) => this.updateCheckbox(item.id, 'read', e.target.checked)}"
-                                                        >
-                                                    </td>
-                                                    <td>
-                                                        <mwc-checkbox
-                                                            .checked="${item.write === true}"
-                                                            .indeterminate="${item.write === 'indeterminate'}"
-                                                            @change="${(e) => this.updateCheckbox(item.id, 'write', e.target.checked)}"
-                                                        >
-                                                        </mwc-checkbox>
-                                                    </td>
-                                                </tr>
-                                                ${item.isExpanded ? html`
-                                                    <tr>
-                                                        <td colspan="4">
-                                                        <table>
-                                                            <thead>
-                                                            <tr>
-                                                                ${this.tableHeadersEntities.map(
-                                                                    (header) => html`<th>${this.translate(header)}</th>`
-                                                                )}
-                                                            </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                            ${item.displayEntities.length > 0 ? item.displayEntities.map((entity) => html`
-                                                                <tr>
-                                                                <td>${entity.name === 'Unknown' ?  entity.original_name : entity.name}</td>
-                                                                <td>${entity[this.tableHeadersEntities[1]]}</td>
-                                                                <td>
-                                                                    <mwc-checkbox
-                                                                        .checked="${entity.read}"
-                                                                        @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'read', e.target.checked)}"
-                                                                    >
-                                                                </td>
-                                                                <td>
-                                                                    <mwc-checkbox
-                                                                        .checked="${entity.write}"
-                                                                        @change="${(e) => this.updateEntityCheckbox(item.id, entity.entity_id, 'write', e.target.checked)}"
-                                                                    >
-                                                                    </mwc-checkbox>
-                                                                </td>
-                                                                </tr>
-                                                            `) : html`<tr><td colspan="3">${this.translate("entites_not_found")}</td></tr>`}
-                                                            </tbody>
-                                                        </table>
-                                                        </td>
-                                                    </tr>
-                                                    ` : ''}
-                                            `
-                                            )}
-                                        </tbody>
-                                    </table>
-                                `}
-                            </div>
-
-                            <div class="card-footer">
-                                <ha-button
-                                    @click=${this.save}
-                                    .disabled=${this._isSaving}
-                                >
-                                    ${this.translate("save")}
-                                </ha-button>
-                                <ha-button
-                                    class="restart-button"
-                                    variant="danger"
-                                    @click=${this.restart}
-                                    .disabled=${this._isSaving}
-                                >
-                                    ${this.translate("restart")}
-                                </ha-button>
-                            </div>
-                        `}
-                    </ha-card>`
-                }
-                ${!this.isAnUser ? html`
-                    <ha-card
-                        class="helpers-card collapsible-card"
-                        header="${this.translate("helper_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
-                    >
-                        <div class="card-toggle-icon" @click=${this.toggleHelpersCard}>
-                            <ha-icon icon="${this.helpersCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
-                        </div>
-                        ${this.helpersCollapsed ? null : html`
-                            <div class="table-wrapper">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            ${this.helperTableHeaders.map((header) => {
-                                                if (header === 'read' || header === 'write') {
-                                                    const state = this.getHelperSelectAllState(header);
-                                                    return html`<th>
-                                                        <mwc-checkbox
-                                                            .checked=${state === true}
-                                                            .indeterminate=${state === 'indeterminate'}
-                                                            @change=${(e) => this.handleHelperSelectAll(header, e)}
-                                                            style="vertical-align: middle; margin-right: 4px;">
-                                                        </mwc-checkbox>
-                                                        <span style="vertical-align: middle;">${this.translate(header)}</span>
-                                                    </th>`
-                                                }
-                                                return html`<th>${this.translate(header)}</th>`;
-                                            })}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${this.helperTableData.length ? this.helperTableData.map(helper => html`
-                                            <tr>
-                                                <td>${helper.name === 'Unknown' ? helper.entity_id : helper.name}</td>
-                                                <td>${helper.entity_id}</td>
-                                                <td>
-                                                    <mwc-checkbox
-                                                        .checked="${helper.read}"
-                                                        @change="${(e) => this.updateHelperCheckbox(helper.entity_id, 'read', e.target.checked)}"
-                                                    ></mwc-checkbox>
-                                                </td>
-                                                <td>
-                                                    <mwc-checkbox
-                                                        .checked="${helper.write}"
-                                                        @change="${(e) => this.updateHelperCheckbox(helper.entity_id, 'write', e.target.checked)}"
-                                                    ></mwc-checkbox>
-                                                </td>
-                                            </tr>
-                                        `) : html`<tr><td colspan="4">${this.translate("helpers_not_found")}</td></tr>`}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="card-footer">
-                                <ha-button
-                                    @click=${this.save}
-                                    .disabled=${this._isSaving}
-                                >
-                                    ${this.translate("save")}
-                                </ha-button>
-                                <ha-button
-                                    class="restart-button"
-                                    variant="danger"
-                                    @click=${this.restart}
-                                    .disabled=${this._isSaving}
-                                >
-                                    ${this.translate("restart")}
-                                </ha-button>
-                            </div>
-                        `}
-                    </ha-card>
-                ` : null}
-                ${!this.isAnUser ? html`
-                    <ha-card
-                        class="entities-without-devices-card collapsible-card"
-                        header="${entitiesWithoutDevicesTitle} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
-                    >
-                        <div class="card-toggle-icon" @click=${this.toggleEntitiesWithoutDevicesCard}>
-                            <ha-icon icon="${this.entitiesWithoutDevicesCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
-                        </div>
-                        ${this.entitiesWithoutDevicesCollapsed ? null : html`
-                            <div class="table-wrapper">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            ${this.entitiesWithoutDevicesHeaders.map((header) => {
-                                                if (header === 'read' || header === 'write') {
-                                                    const state = this.getEntitiesWithoutDevicesSelectAllState(header);
-                                                    return html`<th>
-                                                        <mwc-checkbox
-                                                            .checked=${state === true}
-                                                            .indeterminate=${state === 'indeterminate'}
-                                                            @change=${(e) => this.handleEntitiesWithoutDevicesSelectAll(header, e)}
-                                                            style="vertical-align: middle; margin-right: 4px;">
-                                                        </mwc-checkbox>
-                                                        <span style="vertical-align: middle;">${this.translate(header)}</span>
-                                                    </th>`
-                                                }
-                                                return html`<th>${this.translate(header)}</th>`;
-                                            })}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${this.processedEntitiesWithoutDevices.length ? this.processedEntitiesWithoutDevices.map(entity => html`
-                                            <tr>
-                                                <td>${entity.name === 'Unknown' ? (entity.original_name || entity.entity_id) : entity.name}</td>
-                                                <td>${entity.entity_id}</td>
-                                                <td>
-                                                    <mwc-checkbox
-                                                        .checked="${entity.read}"
-                                                        @change="${(e) => this.updateEntitiesWithoutDevicesCheckbox(entity.entity_id, 'read', e.target.checked)}"
-                                                    ></mwc-checkbox>
-                                                </td>
-                                                <td>
-                                                    <mwc-checkbox
-                                                        .checked="${entity.write}"
-                                                        @change="${(e) => this.updateEntitiesWithoutDevicesCheckbox(entity.entity_id, 'write', e.target.checked)}"
-                                                    ></mwc-checkbox>
-                                                </td>
-                                            </tr>
-                                        `) : html`<tr><td colspan="4">${this.translate("entities_not_found")}</td></tr>`}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="card-footer">
-                                <ha-button
-                                    @click=${this.save}
-                                    .disabled=${this._isSaving}
-                                >
-                                    ${this.translate("save")}
-                                </ha-button>
-                                <ha-button
-                                    class="restart-button"
-                                    variant="danger"
-                                    @click=${this.restart}
-                                    .disabled=${this._isSaving}
-                                >
-                                    ${this.translate("restart")}
-                                </ha-button>
-                            </div>
-                        `}
-                    </ha-card>
-                ` : null}
+                    ${this.renderDevicesPermissionsCard()}
+                    ${this.renderEntitiesPermissionsCard()}
+                `}
+                ${this.renderHelpersPermissionsCard()}
             </div>
         </div>
         <ha-dialog
@@ -1832,6 +1723,7 @@ class AccessControlManager extends LitElement {
 
             .group-card,
             .entites-cards,
+            .entities-card,
             .dashboards-card,
             .helpers-card,
             .entities-without-devices-card {
@@ -1892,9 +1784,33 @@ class AccessControlManager extends LitElement {
                 padding: 0 2%;
             }
 
-            .table-wrapper {
-                overflow-x: auto;
+            .data-table-section {
                 padding: 16px;
+            }
+
+            .data-table-container {
+                height: min(60vh, 520px);
+            }
+
+            .devices-table-container {
+                height: min(50vh, 420px);
+            }
+
+            .entities-table-container {
+                height: min(65vh, 560px);
+            }
+
+            .helpers-table-container {
+                height: min(55vh, 460px);
+            }
+
+            .dashboard-views-table-container {
+                height: min(50vh, 420px);
+            }
+
+            .permissions-data-table {
+                --data-table-border-width: 0;
+                height: 100%;
             }
 
             .collapsible-card {
@@ -1920,33 +1836,6 @@ class AccessControlManager extends LitElement {
                 pointer-events: none;
             }
 
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                background-color: var(--secondary-background-color);
-                border-radius: var(--ha-card-border-radius,12px);
-            }
-
-            th {
-                text-align: left;
-                padding: 12px;
-                font-size: 14px;
-                font-weight: bold;
-                border-bottom: 2px solid var(--divider-color);
-                color: var(--primary-text-color);
-            }
-
-            td {
-                padding: 10px;
-                font-size: 14px;
-                color: var(--primary-text-color);
-                border-bottom: 1px solid var(--divider-color);
-            }
-
-            tr:hover {
-                background-color: var(--table-row-hover-color, rgba(0, 0, 0, 0.05));
-            }
-
             .card-footer {
                 display: flex;
                 justify-content: flex-end;
@@ -1961,33 +1850,19 @@ class AccessControlManager extends LitElement {
                 transition: transform 0.2s ease;
             }
 
-            .spinner-container {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 200px;
-            }
-
-            .spinner {
-                border: 4px solid rgba(0, 0, 0, 0.1);
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                border: 4px solid rgba(0, 0, 0, 0.1);
-                border-left-color: var(--primary-color);
-                animation: spin 1s linear infinite;
-            }
-
-            @keyframes spin {
-                to {
-                transform: rotate(360deg);
+            @media (max-width: 800px) {
+                .devices-table-container {
+                    height: 360px;
                 }
-            }
 
-            .empty-state {
-                padding: 24px;
-                text-align: center;
-                color: var(--secondary-text-color);
+                .entities-table-container {
+                    height: 440px;
+                }
+
+                .helpers-table-container,
+                .dashboard-views-table-container {
+                    height: 360px;
+                }
             }
         `;
     }

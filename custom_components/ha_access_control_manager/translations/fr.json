@@ -71,6 +71,9 @@
             "device_permissions_for": {
                 "name": "Les droits d'accès pour"
             },
+            "entity_permissions_for": {
+                "name": "Autorisations des entités pour"
+            },
             "select_an_user_or_a_group": {
                 "name": "S'il vous plaît, sélectionnez un groupe"
             },
@@ -79,6 +82,15 @@
             },
             "name": {
                 "name": "Nom"
+            },
+            "device": {
+                "name": "Appareil"
+            },
+            "integration": {
+                "name": "Intégration"
+            },
+            "area": {
+                "name": "Zone"
             },
             "entity_id": {
                 "name": "Id de l'Entité"
@@ -91,6 +103,12 @@
             },
             "search_by_name": {
                 "name": "Rechercher par nom"
+            },
+            "search_devices": {
+                "name": "Rechercher des appareils"
+            },
+            "search_entities": {
+                "name": "Rechercher des entités"
             },
             "custom_group_warning": {
                 "name": "Attention vous avez un groupe personalisé sans polices déclarées veuillez set au moins une police avant de restart home assistant"
@@ -119,9 +137,36 @@
             "entities_without_devices_permissions_for": {
                 "name": "Autorisations des entités sans appareils pour"
             },
+            "without_device": {
+                "name": "Sans appareil"
+            },
+            "devices_not_found": {
+                "name": "Aucun appareil trouvé"
+            },
             "helpers_not_found": {
                 "name": "Aucun helper trouvé"
+            },
+            "dashboard": {
+                "name": "Tableau de bord"
+            },
+            "view": {
+                "name": "Vue"
+            },
+            "path": {
+                "name": "Chemin"
+            },
+            "type": {
+                "name": "Type"
+            },
+            "search_helpers": {
+                "name": "Rechercher des helpers"
+            },
+            "search_dashboard_views": {
+                "name": "Rechercher des vues de tableaux de bord"
+            },
+            "entire_dashboard": {
+                "name": "Tableau complet"
             }
-        } 
+        }
     }
 }

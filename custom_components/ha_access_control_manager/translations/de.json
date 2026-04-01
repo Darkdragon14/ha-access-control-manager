@@ -71,6 +71,9 @@
             "device_permissions_for": {
                 "name": "Geräteberechtigungen für"
             },
+            "entity_permissions_for": {
+                "name": "Entitätsberechtigungen für"
+            },
             "select_an_user_or_a_group": {
                 "name": "Bitte wählen Sie eine Gruppe aus"
             },
@@ -79,6 +82,15 @@
             },
             "name": {
                 "name": "Name"
+            },
+            "device": {
+                "name": "Gerät"
+            },
+            "integration": {
+                "name": "Integration"
+            },
+            "area": {
+                "name": "Bereich"
             },
             "entity_id": {
                 "name": "Entitäts-ID"
@@ -91,6 +103,12 @@
             },
             "search_by_name": {
                 "name": "Suche nach Namen"
+            },
+            "search_devices": {
+                "name": "Geräte suchen"
+            },
+            "search_entities": {
+                "name": "Entitäten suchen"
             },
             "custom_group_warning": {
                 "name": "Achtung, Sie haben eine benutzerdefinierte Gruppe ohne deklarierte Richtlinien. Bitte legen Sie mindestens eine Richtlinie fest, bevor Sie Home Assistant neu starten"
@@ -119,8 +137,35 @@
             "entities_without_devices_permissions_for": {
                 "name": "Entitätsberechtigungen ohne Geräte für"
             },
+            "without_device": {
+                "name": "Ohne Gerät"
+            },
+            "devices_not_found": {
+                "name": "Keine Geräte gefunden"
+            },
             "helpers_not_found": {
                 "name": "Keine Helfer gefunden"
+            },
+            "dashboard": {
+                "name": "Dashboard"
+            },
+            "view": {
+                "name": "Ansicht"
+            },
+            "path": {
+                "name": "Pfad"
+            },
+            "type": {
+                "name": "Typ"
+            },
+            "search_helpers": {
+                "name": "Helfer suchen"
+            },
+            "search_dashboard_views": {
+                "name": "Dashboard-Ansichten suchen"
+            },
+            "entire_dashboard": {
+                "name": "Gesamtes Dashboard"
             }
         }
     }
