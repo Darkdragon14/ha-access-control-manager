@@ -32,6 +32,11 @@ class AccessControlManager extends LitElement {
             duplicateGroupDialogOpen: { type: Boolean },
             duplicateGroupName: { type: String },
             groupToDuplicate: { type: Object },
+            renameGroupDialogOpen: { type: Boolean },
+            renameGroupName: { type: String },
+            groupToRename: { type: Object },
+            groupToDelete: { type: Object },
+            deleteGroupDialogOpen: { type: Boolean },
             searchTerm: { type: String },
             _isLoading: { type: Boolean },
             _isSaving: { type: Boolean },
@@ -68,6 +73,11 @@ class AccessControlManager extends LitElement {
         this.duplicateGroupDialogOpen = false;
         this.duplicateGroupName = '';
         this.groupToDuplicate = null;
+        this.renameGroupDialogOpen = false;
+        this.renameGroupName = '';
+        this.groupToRename = null;
+        this.groupToDelete = null;
+        this.deleteGroupDialogOpen = false;
         this.expandedDevices = new Set();
         this.expandedDashboards = new Set();
         this._dashboardsTemplate = [];
@@ -213,6 +223,8 @@ class AccessControlManager extends LitElement {
                 const updatedUser = this.dataUsers.find(user => user.id === this.selected.id);
                 if (updatedUser) {
                     this.selected = updatedUser;
+                } else {
+                    this.resetSelection();
                 }
             } else {
                 const updatedGroup = this.dataGroups.find(group => group.id === this.selected.id);
@@ -220,6 +232,8 @@ class AccessControlManager extends LitElement {
                     this.selected = updatedGroup;
                     this.loadData(updatedGroup);
                     this.loadDashboardPermissions(updatedGroup);
+                } else {
+                    this.resetSelection();
                 }
             }
         }
@@ -331,7 +345,20 @@ class AccessControlManager extends LitElement {
                 entity.write = false;
             });
         });
+        this.helperTableData = this.helperTableData.map(helper => ({
+            ...helper,
+            read: false,
+            write: false
+        }));
+        this.entitiesWithoutDevices = this.entitiesWithoutDevices.map(entity => ({
+            ...entity,
+            read: false,
+            write: false
+        }));
+        this.loadDashboardPermissions();
         this.tableData = [...this.tableData];
+        this.helperTableData = [...this.helperTableData];
+        this.entitiesWithoutDevices = [...this.entitiesWithoutDevices];
         this.requestUpdate();
     }
 
@@ -488,6 +515,15 @@ class AccessControlManager extends LitElement {
         
     }
 
+    openCreateGroupDialog() {
+        this.openCreateGroup = true;
+    }
+
+    closeCreateGroupDialog() {
+        this.openCreateGroup = false;
+        this.newGroupName = '';
+    }
+
     handleNewGroupSave() {
         const inputField = this.shadowRoot.querySelector('.group-input');
         if (!inputField.reportValidity()) {
@@ -495,16 +531,25 @@ class AccessControlManager extends LitElement {
         }
 
         const name = this.newGroupName.trim();
-        if (name) {
-            const id = `custom-group-${name.toLowerCase().replaceAll(' ', '-')}`;
-            const newGroup = { id, name, dashboards: {} };
-            this.dataGroups = [...this.dataGroups, newGroup];
-            this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: false, data: newGroup }).then(data => {
-                this.loadAuths(data);
-            })
-            this.newGroupName = '';
+        if (!name) {
+            return;
         }
-        this.needToSetPermissions = true;
+
+        this._isSaving = true;
+        this.requestUpdate();
+
+        this.hass.callWS({ type: 'ha_access_control/create_group', name })
+            .then(result => {
+                this.closeCreateGroupDialog();
+                this.loadAuths(result.data);
+            })
+            .catch(error => {
+                console.error('Unable to create group:', error);
+            })
+            .finally(() => {
+                this._isSaving = false;
+                this.requestUpdate();
+            });
     }
     
     handleNewGroupInput(e) {
@@ -576,7 +621,7 @@ class AccessControlManager extends LitElement {
     }
 
     isDefaultSystemGroup(group) {
-        return ['system-admin', 'system-users', 'system-read-only'].includes(group?.id);
+        return ['system-admin', 'system-users', 'system-read-only'].includes(group?.id) || group?.system_generated === true;
     }
 
     openDuplicateGroupDialog(group) {
@@ -593,6 +638,234 @@ class AccessControlManager extends LitElement {
         this.duplicateGroupDialogOpen = false;
         this.duplicateGroupName = '';
         this.groupToDuplicate = null;
+    }
+
+    getSelectedGroup() {
+        if (this.isAnUser) {
+            return null;
+        }
+
+        const groupId = this.selectedGroupId || this.selected?.id;
+        if (!groupId) {
+            return null;
+        }
+
+        return this.dataGroups.find(group => group.id === groupId) || null;
+    }
+
+    getLinkedUsersForGroup(groupId) {
+        if (!groupId || !Array.isArray(this.dataUsers)) {
+            return [];
+        }
+
+        const usernamesById = new Map(
+            (this.users || []).map(user => [user.id, user.username || user.id])
+        );
+
+        return this.dataUsers
+            .filter(user => user?.id && Array.isArray(user.group_ids) && user.group_ids.includes(groupId))
+            .map(user => ({
+                id: user.id,
+                username: usernamesById.get(user.id) || user.username || user.name || user.id
+            }))
+            .sort((a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' }));
+    }
+
+    isGroupDeleteDisabled(group) {
+        if (!group) {
+            return true;
+        }
+
+        return this.getLinkedUsersForGroup(group.id).length > 0 || this._isSaving;
+    }
+
+    getDeleteGroupTooltip(group) {
+        if (!group) {
+            return '';
+        }
+
+        if (this.getLinkedUsersForGroup(group.id).length > 0) {
+            return this.translate('delete_group_disabled_tooltip');
+        }
+
+        return this.translate('delete_group_tooltip');
+    }
+
+    openRenameGroupDialog() {
+        this.openRenameGroupDialogForGroup(this.getSelectedGroup());
+    }
+
+    openRenameGroupDialogForGroup(group) {
+        if (!group || this.isDefaultSystemGroup(group) || this._isSaving) {
+            return;
+        }
+
+        this.groupToRename = group;
+        this.renameGroupName = group.name || '';
+        this.renameGroupDialogOpen = true;
+    }
+
+    closeRenameGroupDialog() {
+        this.renameGroupDialogOpen = false;
+        this.renameGroupName = '';
+        this.groupToRename = null;
+    }
+
+    handleRenameGroupInput(e) {
+        this.renameGroupName = e.target.value;
+    }
+
+    handleRenameGroupSave() {
+        const inputField = this.shadowRoot.querySelector('.rename-group-input');
+        if (!inputField || !inputField.reportValidity()) {
+            return;
+        }
+
+        const groupToRename = this.groupToRename || this.getSelectedGroup();
+        const newName = this.renameGroupName.trim();
+        if (!groupToRename || !newName) {
+            return;
+        }
+
+        this._isSaving = true;
+        this.requestUpdate();
+
+        this.hass.callWS({
+            type: 'ha_access_control/rename_group',
+            group_id: groupToRename.id,
+            new_name: newName
+        })
+            .then(result => {
+                if (!this.isAnUser && (this.selectedGroupId === result.old_group_id || this.selected?.id === result.old_group_id)) {
+                    this.selectedGroupId = result.group_id;
+                    this.selected = {
+                        ...groupToRename,
+                        id: result.group_id,
+                        name: result.group_name
+                    };
+                }
+
+                this.closeRenameGroupDialog();
+                this.loadAuths(result.data);
+            })
+            .catch(error => {
+                console.error('Unable to rename group:', error);
+            })
+            .finally(() => {
+                this._isSaving = false;
+                this.requestUpdate();
+            });
+    }
+
+    openDeleteGroupDialog() {
+        this.openDeleteGroupDialogForGroup(this.getSelectedGroup());
+    }
+
+    openDeleteGroupDialogForGroup(group) {
+        if (!group || this.isDefaultSystemGroup(group) || this.isGroupDeleteDisabled(group)) {
+            return;
+        }
+
+        this.groupToDelete = group;
+        this.deleteGroupDialogOpen = true;
+    }
+
+    closeDeleteGroupDialog() {
+        this.groupToDelete = null;
+        this.deleteGroupDialogOpen = false;
+    }
+
+    handleDeleteGroupConfirm() {
+        const groupToDelete = this.groupToDelete || this.getSelectedGroup();
+        if (!groupToDelete || this.isDefaultSystemGroup(groupToDelete) || this.isGroupDeleteDisabled(groupToDelete)) {
+            this.closeDeleteGroupDialog();
+            return;
+        }
+
+        this._isSaving = true;
+        this.requestUpdate();
+
+        this.hass.callWS({ type: 'ha_access_control/delete_group', group_id: groupToDelete.id })
+            .then(result => {
+                this.closeDeleteGroupDialog();
+                this.loadAuths(result.data);
+            })
+            .catch(error => {
+                console.error('Unable to delete group:', error);
+            })
+            .finally(() => {
+                this._isSaving = false;
+                this.requestUpdate();
+            });
+    }
+
+    renderSelectedGroupActions() {
+        const selectedGroup = this.getSelectedGroup();
+        if (!selectedGroup || this.isDefaultSystemGroup(selectedGroup)) {
+            return null;
+        }
+
+        return html`
+            <ha-button
+                class="group-action-button"
+                @click=${this.openRenameGroupDialog}
+                .disabled=${this._isSaving}
+            >
+                ${this.translate('rename_group')}
+            </ha-button>
+            <span class="delete-group-button-wrapper" title="${this.getDeleteGroupTooltip(selectedGroup)}">
+                <ha-button
+                    class="group-action-button"
+                    variant="danger"
+                    .disabled=${this.isGroupDeleteDisabled(selectedGroup)}
+                    @click=${this.openDeleteGroupDialog}
+                    aria-label="${this.getDeleteGroupTooltip(selectedGroup)}"
+                >
+                    ${this.translate('delete_group')}
+                </ha-button>
+            </span>
+        `;
+    }
+
+    renderInlineRenameGroupButton(group) {
+        if (!group || this.isDefaultSystemGroup(group)) {
+            return null;
+        }
+
+        return html`
+            <ha-button
+                class="group-action-button"
+                appearance="plain"
+                title="${this.translate('rename_group_tooltip')}"
+                aria-label="${this.translate('rename_group_tooltip')}"
+                @click=${() => this.openRenameGroupDialogForGroup(group)}
+                .disabled=${this._isSaving}
+            >
+                <ha-icon icon="mdi:pencil"></ha-icon>
+            </ha-button>
+        `;
+    }
+
+    renderInlineDeleteGroupButton(group) {
+        if (!group || this.isDefaultSystemGroup(group)) {
+            return null;
+        }
+
+        const tooltip = this.getDeleteGroupTooltip(group);
+
+        return html`
+            <span class="delete-group-button-wrapper" title="${tooltip}">
+                <ha-button
+                    class="group-action-button delete-group-inline-button"
+                    appearance="plain"
+                    .disabled=${this.isGroupDeleteDisabled(group)}
+                    @click=${() => this.openDeleteGroupDialogForGroup(group)}
+                    aria-label="${tooltip}"
+                >
+                    <ha-icon icon="mdi:delete"></ha-icon>
+                </ha-button>
+            </span>
+        `;
     }
 
     handleDuplicateGroupInput(e) {
@@ -614,21 +887,22 @@ class AccessControlManager extends LitElement {
             return;
         }
 
-        const sourceGroup = JSON.parse(JSON.stringify(this.groupToDuplicate));
-        const duplicatedGroup = {
-            ...sourceGroup,
-            id: this.getUniqueGroupId(newGroupName),
-            name: newGroupName,
-            dashboards: sourceGroup.dashboards || {}
-        };
+        const sourceGroupId = this.groupToDuplicate.id;
 
         this.closeDuplicateGroupDialog();
         this._isSaving = true;
         this.requestUpdate();
 
-        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: false, data: duplicatedGroup })
-            .then(data => {
-                this.loadAuths(data);
+        this.hass.callWS({
+            type: 'ha_access_control/create_group',
+            name: newGroupName,
+            source_group_id: sourceGroupId
+        })
+            .then(result => {
+                this.loadAuths(result.data);
+            })
+            .catch(error => {
+                console.error('Unable to duplicate group:', error);
             })
             .finally(() => {
                 this._isSaving = false;
@@ -1233,6 +1507,7 @@ class AccessControlManager extends LitElement {
                         <div class="filters">
                             <ha-form
                                 .hass=${this.hass}
+                                .data=${{ [this.translate("user")]: this.selectedUserId || "" }}
                                 .schema=${[
                                     {
                                         name: this.translate("user"),
@@ -1251,6 +1526,7 @@ class AccessControlManager extends LitElement {
                             ></ha-form>
                             <ha-form
                                 .hass=${this.hass}
+                                .data=${{ [this.translate("group")]: this.selectedGroupId || "" }}
                                 .schema=${[
                                     {
                                         name: this.translate("group"),
@@ -1282,6 +1558,8 @@ class AccessControlManager extends LitElement {
                             >
                                 ${this.translate("restart")}
                             </ha-button>
+
+                            ${this.renderSelectedGroupActions()}
 
                             <ha-textfield
                                 class="search-input"
@@ -1327,13 +1605,16 @@ class AccessControlManager extends LitElement {
                                             >
                                                 <ha-icon icon="mdi:content-copy"></ha-icon>
                                             </ha-button>
+                                            ${this.renderInlineRenameGroupButton(group)}
+                                            ${this.renderInlineDeleteGroupButton(group)}
                                         `}
                                     </div>
                                 </div>`
                             })}
                             <div class="new-group-input">
                                 <ha-button
-                                    @click=${() => this.openCreateGroup = true}
+                                    @click=${this.openCreateGroupDialog}
+                                    .disabled=${this._isSaving}
                                 >
                                     ${this.translate("create_new_group")}
                                 </ha-button>
@@ -1354,6 +1635,7 @@ class AccessControlManager extends LitElement {
                                 <ha-dialog 
                                     .open=${this.openCreateGroup}
                                     header-title="${this.translate("create_new_group")}" 
+                                    @closed=${this.closeCreateGroupDialog}
                                 >
                                     <div>
                                         <ha-textfield 
@@ -1370,7 +1652,7 @@ class AccessControlManager extends LitElement {
                                             appearance="plain"
                                             dialogAction="cancel"
                                             slot="secondaryAction"
-                                            @click="${(e) => this.openCreateGroup = false}"
+                                            @click=${this.closeCreateGroupDialog}
                                         >
                                             ${this.translate("cancel")}
                                         </ha-button>
@@ -1378,7 +1660,8 @@ class AccessControlManager extends LitElement {
                                             appearance="plain"
                                             dialogAction="save"
                                             slot="primaryAction"
-                                            @click="${this.handleNewGroupSave}"
+                                            @click=${this.handleNewGroupSave}
+                                            .disabled=${this._isSaving}
                                         >
                                             ${this.translate("save")}
                                         </ha-button>
@@ -1396,7 +1679,7 @@ class AccessControlManager extends LitElement {
                                             required
                                             validationMessage="${this.translate("enter_group_name")}" 
                                             .value="${this.duplicateGroupName}"
-                                            @input="${this.handleDuplicateGroupInput}"
+                                            @input=${this.handleDuplicateGroupInput}
                                         ></ha-textfield>
                                     </div>
                                     <ha-dialog-footer slot="footer">
@@ -1719,6 +2002,64 @@ class AccessControlManager extends LitElement {
                 </ha-button>
             </ha-dialog-footer>
         </ha-dialog>
+        <ha-dialog
+            .open=${this.renameGroupDialogOpen}
+            header-title="${this.translate("rename_group")}" 
+            @closed=${this.closeRenameGroupDialog}
+        >
+            <div>
+                <ha-textfield
+                    class="rename-group-input"
+                    label="${this.translate("group_name")}" 
+                    required
+                    validationMessage="${this.translate("enter_group_name")}" 
+                    .value="${this.renameGroupName}"
+                    @input=${this.handleRenameGroupInput}
+                ></ha-textfield>
+            </div>
+            <ha-dialog-footer slot="footer">
+                <ha-button
+                    appearance="plain"
+                    dialogAction="cancel"
+                    slot="secondaryAction"
+                    @click=${this.closeRenameGroupDialog}
+                >
+                    ${this.translate("cancel")}
+                </ha-button>
+                <ha-button
+                    appearance="plain"
+                    dialogAction="save"
+                    slot="primaryAction"
+                    @click=${this.handleRenameGroupSave}
+                    .disabled=${this._isSaving}
+                >
+                    ${this.translate("save")}
+                </ha-button>
+            </ha-dialog-footer>
+        </ha-dialog>
+        <ha-dialog
+            .open=${this.deleteGroupDialogOpen}
+            header-title="${this.translate("confirm_delete_group_title")}" 
+            @closed=${this.closeDeleteGroupDialog}
+        >
+            <p>${this.translate("confirm_delete_group_description")}</p>
+            <ha-dialog-footer slot="footer">
+                <ha-button
+                    slot="secondaryAction"
+                    @click=${this.closeDeleteGroupDialog}
+                >
+                    ${this.translate("cancel")}
+                </ha-button>
+                <ha-button
+                    variant="danger"
+                    slot="primaryAction"
+                    @click=${this.handleDeleteGroupConfirm}
+                    .disabled=${this._isSaving}
+                >
+                    ${this.translate("delete_group")}
+                </ha-button>
+            </ha-dialog-footer>
+        </ha-dialog>
         `
     }
 
@@ -1872,11 +2213,23 @@ class AccessControlManager extends LitElement {
                 gap: 8px;
             }
 
+            .group-action-button {
+                min-width: 0;
+            }
+
             .duplicate-group-button {
                 min-width: 0;
             }
 
+            .delete-group-button-wrapper {
+                display: inline-flex;
+            }
+
             .duplicate-group-button ha-icon {
+                --mdc-icon-size: 18px;
+            }
+
+            .group-action-button ha-icon {
                 --mdc-icon-size: 18px;
             }
 

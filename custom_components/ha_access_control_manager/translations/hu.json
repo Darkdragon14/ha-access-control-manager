@@ -65,6 +65,27 @@
             "duplicate_group_tooltip": {
                 "name": "Csoport duplikálása"
             },
+            "rename_group": {
+                "name": "Csoport atnevezese"
+            },
+            "rename_group_tooltip": {
+                "name": "Csoport atnevezese"
+            },
+            "delete_group": {
+                "name": "Csoport torlese"
+            },
+            "delete_group_tooltip": {
+                "name": "Csoport torlese"
+            },
+            "delete_group_disabled_tooltip": {
+                "name": "Ez a csoport nem torolheto: legalabb egy felhasznalo kapcsolodik hozza"
+            },
+            "confirm_delete_group_title": {
+                "name": "Csoport torlesenek megerositese"
+            },
+            "confirm_delete_group_description": {
+                "name": "Biztosan torolni szeretned ezt a csoportot?"
+            },
             "copy_suffix": {
                 "name": "másolat"
             },

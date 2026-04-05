@@ -12,6 +12,7 @@ LOVELACE_STORAGE = ".storage/lovelace"
 LOVELACE_STORAGE_PREFIX = ".storage/lovelace."
 LOVELACE_STORAGE_DIR = ".storage"
 GROUP_DASHBOARD_PERMISSIONS_PATH = ".storage/ha_access_control_manager_dashboards"
+SYSTEM_GROUP_IDS = {"system-admin", "system-users", "system-read-only"}
 
 ICONS = [
     "mdi:lock","mdi:lock-open","mdi:key",
