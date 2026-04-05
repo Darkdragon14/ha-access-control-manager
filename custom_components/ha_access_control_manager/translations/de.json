@@ -65,6 +65,27 @@
             "duplicate_group_tooltip": {
                 "name": "Diese Gruppe duplizieren"
             },
+            "rename_group": {
+                "name": "Gruppe umbenennen"
+            },
+            "rename_group_tooltip": {
+                "name": "Diese Gruppe umbenennen"
+            },
+            "delete_group": {
+                "name": "Gruppe löschen"
+            },
+            "delete_group_tooltip": {
+                "name": "Diese Gruppe löschen"
+            },
+            "delete_group_disabled_tooltip": {
+                "name": "Diese Gruppe kann nicht gelöscht werden: Mindestens ein Benutzer ist verknüpft"
+            },
+            "confirm_delete_group_title": {
+                "name": "Löschen der Gruppe bestätigen"
+            },
+            "confirm_delete_group_description": {
+                "name": "Möchten Sie diese Gruppe wirklich löschen?"
+            },
             "copy_suffix": {
                 "name": "Kopie"
             },
