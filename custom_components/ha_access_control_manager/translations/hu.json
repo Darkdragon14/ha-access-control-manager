@@ -152,6 +152,12 @@
             "visible": {
                 "name": "Látható"
             },
+            "group_members_for": {
+                "name": "Csoporttagok ehhez"
+            },
+            "no_users_linked_to_group": {
+                "name": "Ehhez a csoporthoz nincs felhasználó kapcsolva"
+            },
             "helper_permissions_for": {
                 "name": "Segédek engedélyei ehhez"
             },
