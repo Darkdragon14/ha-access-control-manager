@@ -889,6 +889,35 @@ class AccessControlManager extends LitElement {
         `;
     }
 
+    renderGroupMembersCard() {
+        const selectedGroup = this.getSelectedGroup();
+        if (!selectedGroup) {
+            return null;
+        }
+
+        const linkedUsers = this.getLinkedUsersForGroup(selectedGroup.id);
+        const selectedGroupLabel = selectedGroup.name || selectedGroup.id;
+
+        return html`
+            <ha-card
+                class="group-users-card"
+                header="${this.translate('group_members_for')} ${selectedGroupLabel}"
+            >
+                <div class="group-users-content">
+                    ${linkedUsers.length > 0 ? html`
+                        <ul class="group-users-list">
+                            ${linkedUsers.map(user => html`
+                                <li class="group-users-item">${user.username}</li>
+                            `)}
+                        </ul>
+                    ` : html`
+                        <div class="group-users-empty">${this.translate('no_users_linked_to_group')}</div>
+                    `}
+                </div>
+            </ha-card>
+        `;
+    }
+
     renderInlineRenameGroupButton(group) {
         if (!group || this.isDefaultSystemGroup(group)) {
             return null;
@@ -2138,6 +2167,7 @@ class AccessControlManager extends LitElement {
                     </ha-card>
                     `
                 : html`
+                    ${this.renderGroupMembersCard()}
                     ${this.renderDashboardPermissionsCard()}
                     ${this.renderDevicesPermissionsCard()}
                     ${this.renderEntitiesPermissionsCard()}
@@ -2333,12 +2363,38 @@ class AccessControlManager extends LitElement {
             }
 
             .group-card,
+            .group-users-card,
             .entites-cards,
             .entities-card,
             .dashboards-card,
             .helpers-card,
             .entities-without-devices-card {
                 margin: 10px;
+            }
+
+            .group-users-content {
+                padding: 16px;
+            }
+
+            .group-users-list {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                max-height: 180px;
+                overflow-y: auto;
+            }
+
+            .group-users-item {
+                padding: 10px 0;
+                color: var(--primary-text-color);
+            }
+
+            .group-users-item + .group-users-item {
+                border-top: 1px solid var(--divider-color);
+            }
+
+            .group-users-empty {
+                color: var(--secondary-text-color);
             }
             
             .group-list {

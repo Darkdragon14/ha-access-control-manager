@@ -152,6 +152,12 @@
             "visible": {
                 "name": "Visible"
             },
+            "group_members_for": {
+                "name": "Membres du groupe pour"
+            },
+            "no_users_linked_to_group": {
+                "name": "Aucun utilisateur lié à ce groupe"
+            },
             "helper_permissions_for": {
                 "name": "Autorisations des helpers pour"
             },
