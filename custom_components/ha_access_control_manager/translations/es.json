@@ -65,6 +65,27 @@
             "duplicate_group_tooltip": {
                 "name": "Duplicar este grupo"
             },
+            "rename_group": {
+                "name": "Renombrar grupo"
+            },
+            "rename_group_tooltip": {
+                "name": "Renombrar este grupo"
+            },
+            "delete_group": {
+                "name": "Eliminar grupo"
+            },
+            "delete_group_tooltip": {
+                "name": "Eliminar este grupo"
+            },
+            "delete_group_disabled_tooltip": {
+                "name": "No se puede eliminar este grupo: al menos un usuario esta vinculado"
+            },
+            "confirm_delete_group_title": {
+                "name": "Confirmar eliminacion del grupo"
+            },
+            "confirm_delete_group_description": {
+                "name": "Estas seguro de que quieres eliminar este grupo?"
+            },
             "copy_suffix": {
                 "name": "copia"
             },
@@ -166,6 +187,9 @@
             },
             "entire_dashboard": {
                 "name": "Panel completo"
+            },
+            "visible_rows": {
+                "name": "Filas visibles"
             }
         }
     }

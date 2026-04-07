@@ -29,6 +29,15 @@ class AccessControlManager extends LitElement {
             duplicateGroupDialogOpen: { type: Boolean },
             duplicateGroupName: { type: String },
             groupToDuplicate: { type: Object },
+            renameGroupDialogOpen: { type: Boolean },
+            renameGroupName: { type: String },
+            groupToRename: { type: Object },
+            groupToDelete: { type: Object },
+            deleteGroupDialogOpen: { type: Boolean },
+            deviceFilter: { type: String },
+            entityFilter: { type: String },
+            helperFilter: { type: String },
+            dashboardFilter: { type: String },
             _isSaving: { type: Boolean },
             restartDialogOpen: { type: Boolean },
             dashboardsCollapsed: { type: Boolean },
@@ -58,6 +67,15 @@ class AccessControlManager extends LitElement {
         this.duplicateGroupDialogOpen = false;
         this.duplicateGroupName = '';
         this.groupToDuplicate = null;
+        this.renameGroupDialogOpen = false;
+        this.renameGroupName = '';
+        this.groupToRename = null;
+        this.groupToDelete = null;
+        this.deleteGroupDialogOpen = false;
+        this.deviceFilter = '';
+        this.entityFilter = '';
+        this.helperFilter = '';
+        this.dashboardFilter = '';
         this._dashboardsTemplate = [];
         this._pendingDashboardSelection = null;
         this._isSaving = false;
@@ -70,7 +88,68 @@ class AccessControlManager extends LitElement {
 
     translate(key) {
         return this.hass.localize(`component.ha_access_control_manager.entity.frontend.${key}.name`);
-    }    
+    }
+
+    resetTableFilters() {
+        this.deviceFilter = '';
+        this.entityFilter = '';
+        this.helperFilter = '';
+        this.dashboardFilter = '';
+    }
+
+    normalizeTableFilterValue(value) {
+        if (value === undefined || value === null) {
+            return '';
+        }
+
+        if (Array.isArray(value)) {
+            return value.map(item => this.normalizeTableFilterValue(item)).join(' ');
+        }
+
+        return String(value).toLowerCase().trim();
+    }
+
+    getTableTriState(values = []) {
+        if (values.length === 0) {
+            return false;
+        }
+
+        const allChecked = values.every(value => value === true);
+        if (allChecked) {
+            return true;
+        }
+
+        const someChecked = values.some(value => value === true || value === 'indeterminate');
+        return someChecked ? 'indeterminate' : false;
+    }
+
+    getAggregateState(items = [], field) {
+        return this.getTableTriState(items.map(item => item[field]));
+    }
+
+    filterRowsByValue(rows, columns, filterValue) {
+        const normalizedFilter = this.normalizeTableFilterValue(filterValue);
+        if (!normalizedFilter) {
+            return rows;
+        }
+
+        const filterableKeys = Object.entries(columns)
+            .filter(([, column]) => column.filterable)
+            .map(([key, column]) => column.filterKey || column.valueColumn || key);
+
+        if (filterableKeys.length === 0) {
+            return rows;
+        }
+
+        return rows.filter(row => filterableKeys.some(key => {
+            const value = this.normalizeTableFilterValue(row[key]);
+            return value.includes(normalizedFilter);
+        }));
+    }
+
+    handleTableFilterInput(filterKey, event) {
+        this[filterKey] = event.target.value || '';
+    }
 
     update(changedProperties) {
         if (changedProperties.has('hass') && this.hass && this.needToFetch) {
@@ -222,6 +301,8 @@ class AccessControlManager extends LitElement {
                 const updatedUser = this.dataUsers.find(user => user.id === this.selected.id);
                 if (updatedUser) {
                     this.selected = updatedUser;
+                } else {
+                    this.resetSelection();
                 }
             } else {
                 const updatedGroup = this.dataGroups.find(group => group.id === this.selected.id);
@@ -229,6 +310,8 @@ class AccessControlManager extends LitElement {
                     this.selected = updatedGroup;
                     this.loadData(updatedGroup);
                     this.loadDashboardPermissions(updatedGroup);
+                } else {
+                    this.resetSelection();
                 }
             }
         }
@@ -251,15 +334,7 @@ class AccessControlManager extends LitElement {
 
             let visibleState = dashboard.visible ?? false;
             if (views.length > 0) {
-                const allVisible = views.every(view => view.visible === true);
-                const someVisible = views.some(view => view.visible === true);
-                if (allVisible) {
-                    visibleState = true;
-                } else if (someVisible) {
-                    visibleState = 'indeterminate';
-                } else {
-                    visibleState = false;
-                }
+                visibleState = this.getAggregateState(views, 'visible');
             }
 
             return {
@@ -303,6 +378,7 @@ class AccessControlManager extends LitElement {
         if (!user) {
             return;
         }
+        this.resetTableFilters();
         this.selected = user;
         this.selectedUserId = userId;
         this.selectedGroupId = "";
@@ -319,6 +395,7 @@ class AccessControlManager extends LitElement {
         if (!group) {
             return;
         }
+        this.resetTableFilters();
         this.selected = group;
         this.selectedUserId = "";
         this.selectedGroupId = groupId;
@@ -328,6 +405,7 @@ class AccessControlManager extends LitElement {
     }
 
     resetSelection() {
+        this.resetTableFilters();
         this.selected = {};
         this.selectedUserId = "";
         this.selectedGroupId = "";
@@ -352,6 +430,8 @@ class AccessControlManager extends LitElement {
         }));
         this.loadDashboardPermissions();
         this.tableData = [...this.tableData];
+        this.helperTableData = [...this.helperTableData];
+        this.entitiesWithoutDevices = [...this.entitiesWithoutDevices];
         this.requestUpdate();
     }
 
@@ -389,11 +469,8 @@ class AccessControlManager extends LitElement {
                 }
             });
 
-            const entityReads = device.entities.map(entity => entity.read);
-            const entityWrites = device.entities.map(entity => entity.write);
-
-            device.read = entityReads.every(val => val === true) ? true : entityReads.some(val => val === true) ? "indeterminate" : false;
-            device.write = entityWrites.every(val => val === true) ? true : entityWrites.some(val => val === true) ? "indeterminate" : false;
+            device.read = this.getAggregateState(device.entities, 'read');
+            device.write = this.getAggregateState(device.entities, 'write');
 
         });
         this.helperTableData = this.helperTableData.map(helper => {
@@ -476,15 +553,7 @@ class AccessControlManager extends LitElement {
             let visibleState = false;
 
             if (clonedViews.length > 0) {
-                const allVisible = clonedViews.every(val => val.visible === true);
-                const someVisible = clonedViews.some(val => val.visible === true);
-                if (allVisible) {
-                    visibleState = true;
-                } else if (someVisible) {
-                    visibleState = 'indeterminate';
-                } else {
-                    visibleState = false;
-                }
+                visibleState = this.getAggregateState(clonedViews, 'visible');
             } else if (storedDashboard && storedDashboard.visible === true) {
                 visibleState = true;
             }
@@ -508,6 +577,15 @@ class AccessControlManager extends LitElement {
         
     }
 
+    openCreateGroupDialog() {
+        this.openCreateGroup = true;
+    }
+
+    closeCreateGroupDialog() {
+        this.openCreateGroup = false;
+        this.newGroupName = '';
+    }
+
     handleNewGroupSave() {
         const inputField = this.shadowRoot.querySelector('.group-input');
         if (!inputField.reportValidity()) {
@@ -515,16 +593,25 @@ class AccessControlManager extends LitElement {
         }
 
         const name = this.newGroupName.trim();
-        if (name) {
-            const id = `custom-group-${name.toLowerCase().replaceAll(' ', '-')}`;
-            const newGroup = { id, name, dashboards: {} };
-            this.dataGroups = [...this.dataGroups, newGroup];
-            this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: false, data: newGroup }).then(data => {
-                this.loadAuths(data);
-            })
-            this.newGroupName = '';
+        if (!name) {
+            return;
         }
-        this.needToSetPermissions = true;
+
+        this._isSaving = true;
+        this.requestUpdate();
+
+        this.hass.callWS({ type: 'ha_access_control/create_group', name })
+            .then(result => {
+                this.closeCreateGroupDialog();
+                this.loadAuths(result.data);
+            })
+            .catch(error => {
+                console.error('Unable to create group:', error);
+            })
+            .finally(() => {
+                this._isSaving = false;
+                this.requestUpdate();
+            });
     }
     
     handleNewGroupInput(e) {
@@ -596,7 +683,7 @@ class AccessControlManager extends LitElement {
     }
 
     isDefaultSystemGroup(group) {
-        return ['system-admin', 'system-users', 'system-read-only'].includes(group?.id);
+        return ['system-admin', 'system-users', 'system-read-only'].includes(group?.id) || group?.system_generated === true;
     }
 
     openDuplicateGroupDialog(group) {
@@ -613,6 +700,234 @@ class AccessControlManager extends LitElement {
         this.duplicateGroupDialogOpen = false;
         this.duplicateGroupName = '';
         this.groupToDuplicate = null;
+    }
+
+    getSelectedGroup() {
+        if (this.isAnUser) {
+            return null;
+        }
+
+        const groupId = this.selectedGroupId || this.selected?.id;
+        if (!groupId) {
+            return null;
+        }
+
+        return this.dataGroups.find(group => group.id === groupId) || null;
+    }
+
+    getLinkedUsersForGroup(groupId) {
+        if (!groupId || !Array.isArray(this.dataUsers)) {
+            return [];
+        }
+
+        const usernamesById = new Map(
+            (this.users || []).map(user => [user.id, user.username || user.id])
+        );
+
+        return this.dataUsers
+            .filter(user => user?.id && Array.isArray(user.group_ids) && user.group_ids.includes(groupId))
+            .map(user => ({
+                id: user.id,
+                username: usernamesById.get(user.id) || user.username || user.name || user.id
+            }))
+            .sort((a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' }));
+    }
+
+    isGroupDeleteDisabled(group) {
+        if (!group) {
+            return true;
+        }
+
+        return this.getLinkedUsersForGroup(group.id).length > 0 || this._isSaving;
+    }
+
+    getDeleteGroupTooltip(group) {
+        if (!group) {
+            return '';
+        }
+
+        if (this.getLinkedUsersForGroup(group.id).length > 0) {
+            return this.translate('delete_group_disabled_tooltip');
+        }
+
+        return this.translate('delete_group_tooltip');
+    }
+
+    openRenameGroupDialog() {
+        this.openRenameGroupDialogForGroup(this.getSelectedGroup());
+    }
+
+    openRenameGroupDialogForGroup(group) {
+        if (!group || this.isDefaultSystemGroup(group) || this._isSaving) {
+            return;
+        }
+
+        this.groupToRename = group;
+        this.renameGroupName = group.name || '';
+        this.renameGroupDialogOpen = true;
+    }
+
+    closeRenameGroupDialog() {
+        this.renameGroupDialogOpen = false;
+        this.renameGroupName = '';
+        this.groupToRename = null;
+    }
+
+    handleRenameGroupInput(e) {
+        this.renameGroupName = e.target.value;
+    }
+
+    handleRenameGroupSave() {
+        const inputField = this.shadowRoot.querySelector('.rename-group-input');
+        if (!inputField || !inputField.reportValidity()) {
+            return;
+        }
+
+        const groupToRename = this.groupToRename || this.getSelectedGroup();
+        const newName = this.renameGroupName.trim();
+        if (!groupToRename || !newName) {
+            return;
+        }
+
+        this._isSaving = true;
+        this.requestUpdate();
+
+        this.hass.callWS({
+            type: 'ha_access_control/rename_group',
+            group_id: groupToRename.id,
+            new_name: newName
+        })
+            .then(result => {
+                if (!this.isAnUser && (this.selectedGroupId === result.old_group_id || this.selected?.id === result.old_group_id)) {
+                    this.selectedGroupId = result.group_id;
+                    this.selected = {
+                        ...groupToRename,
+                        id: result.group_id,
+                        name: result.group_name
+                    };
+                }
+
+                this.closeRenameGroupDialog();
+                this.loadAuths(result.data);
+            })
+            .catch(error => {
+                console.error('Unable to rename group:', error);
+            })
+            .finally(() => {
+                this._isSaving = false;
+                this.requestUpdate();
+            });
+    }
+
+    openDeleteGroupDialog() {
+        this.openDeleteGroupDialogForGroup(this.getSelectedGroup());
+    }
+
+    openDeleteGroupDialogForGroup(group) {
+        if (!group || this.isDefaultSystemGroup(group) || this.isGroupDeleteDisabled(group)) {
+            return;
+        }
+
+        this.groupToDelete = group;
+        this.deleteGroupDialogOpen = true;
+    }
+
+    closeDeleteGroupDialog() {
+        this.groupToDelete = null;
+        this.deleteGroupDialogOpen = false;
+    }
+
+    handleDeleteGroupConfirm() {
+        const groupToDelete = this.groupToDelete || this.getSelectedGroup();
+        if (!groupToDelete || this.isDefaultSystemGroup(groupToDelete) || this.isGroupDeleteDisabled(groupToDelete)) {
+            this.closeDeleteGroupDialog();
+            return;
+        }
+
+        this._isSaving = true;
+        this.requestUpdate();
+
+        this.hass.callWS({ type: 'ha_access_control/delete_group', group_id: groupToDelete.id })
+            .then(result => {
+                this.closeDeleteGroupDialog();
+                this.loadAuths(result.data);
+            })
+            .catch(error => {
+                console.error('Unable to delete group:', error);
+            })
+            .finally(() => {
+                this._isSaving = false;
+                this.requestUpdate();
+            });
+    }
+
+    renderSelectedGroupActions() {
+        const selectedGroup = this.getSelectedGroup();
+        if (!selectedGroup || this.isDefaultSystemGroup(selectedGroup)) {
+            return null;
+        }
+
+        return html`
+            <ha-button
+                class="group-action-button"
+                @click=${this.openRenameGroupDialog}
+                .disabled=${this._isSaving}
+            >
+                ${this.translate('rename_group')}
+            </ha-button>
+            <span class="delete-group-button-wrapper" title="${this.getDeleteGroupTooltip(selectedGroup)}">
+                <ha-button
+                    class="group-action-button"
+                    variant="danger"
+                    .disabled=${this.isGroupDeleteDisabled(selectedGroup)}
+                    @click=${this.openDeleteGroupDialog}
+                    aria-label="${this.getDeleteGroupTooltip(selectedGroup)}"
+                >
+                    ${this.translate('delete_group')}
+                </ha-button>
+            </span>
+        `;
+    }
+
+    renderInlineRenameGroupButton(group) {
+        if (!group || this.isDefaultSystemGroup(group)) {
+            return null;
+        }
+
+        return html`
+            <ha-button
+                class="group-action-button"
+                appearance="plain"
+                title="${this.translate('rename_group_tooltip')}"
+                aria-label="${this.translate('rename_group_tooltip')}"
+                @click=${() => this.openRenameGroupDialogForGroup(group)}
+                .disabled=${this._isSaving}
+            >
+                <ha-icon icon="mdi:pencil"></ha-icon>
+            </ha-button>
+        `;
+    }
+
+    renderInlineDeleteGroupButton(group) {
+        if (!group || this.isDefaultSystemGroup(group)) {
+            return null;
+        }
+
+        const tooltip = this.getDeleteGroupTooltip(group);
+
+        return html`
+            <span class="delete-group-button-wrapper" title="${tooltip}">
+                <ha-button
+                    class="group-action-button delete-group-inline-button"
+                    appearance="plain"
+                    .disabled=${this.isGroupDeleteDisabled(group)}
+                    @click=${() => this.openDeleteGroupDialogForGroup(group)}
+                    aria-label="${tooltip}"
+                >
+                    <ha-icon icon="mdi:delete"></ha-icon>
+                </ha-button>
+            </span>
+        `;
     }
 
     handleDuplicateGroupInput(e) {
@@ -634,21 +949,22 @@ class AccessControlManager extends LitElement {
             return;
         }
 
-        const sourceGroup = JSON.parse(JSON.stringify(this.groupToDuplicate));
-        const duplicatedGroup = {
-            ...sourceGroup,
-            id: this.getUniqueGroupId(newGroupName),
-            name: newGroupName,
-            dashboards: sourceGroup.dashboards || {}
-        };
+        const sourceGroupId = this.groupToDuplicate.id;
 
         this.closeDuplicateGroupDialog();
         this._isSaving = true;
         this.requestUpdate();
 
-        this.hass.callWS({ type: 'ha_access_control/set_auths', isAnUser: false, data: duplicatedGroup })
-            .then(data => {
-                this.loadAuths(data);
+        this.hass.callWS({
+            type: 'ha_access_control/create_group',
+            name: newGroupName,
+            source_group_id: sourceGroupId
+        })
+            .then(result => {
+                this.loadAuths(result.data);
+            })
+            .catch(error => {
+                console.error('Unable to duplicate group:', error);
             })
             .finally(() => {
                 this._isSaving = false;
@@ -952,6 +1268,188 @@ class AccessControlManager extends LitElement {
         });
     }
 
+    get filteredDeviceRows() {
+        return this.filterRowsByValue(this.deviceRows, this.deviceColumns, this.deviceFilter);
+    }
+
+    get filteredEntityRows() {
+        return this.filterRowsByValue(this.entityRows, this.entityColumns, this.entityFilter);
+    }
+
+    get filteredHelperRows() {
+        return this.filterRowsByValue(this.helperRows, this.helperColumns, this.helperFilter);
+    }
+
+    get filteredDashboardViewRows() {
+        return this.filterRowsByValue(this.dashboardViewRows, this.dashboardViewColumns, this.dashboardFilter);
+    }
+
+    getBulkColumnState(rows, field) {
+        return this.getTableTriState(rows.map(row => row[field]));
+    }
+
+    handleVisibleDeviceColumnToggle(field, newState) {
+        const visibleDeviceIds = new Set(this.filteredDeviceRows.map(row => row.id));
+        if (visibleDeviceIds.size === 0) {
+            return;
+        }
+
+        this.tableData = this.tableData.map(device => {
+            if (!visibleDeviceIds.has(device.id)) {
+                return device;
+            }
+
+            return {
+                ...device,
+                [field]: newState,
+                entities: (device.entities || []).map(entity => ({
+                    ...entity,
+                    [field]: newState
+                }))
+            };
+        });
+        this.requestUpdate();
+    }
+
+    handleVisibleEntityColumnToggle(field, newState) {
+        const deviceEntitiesById = new Map();
+        const orphanEntityIds = new Set();
+
+        this.filteredEntityRows.forEach(row => {
+            if (row.device_id) {
+                if (!deviceEntitiesById.has(row.device_id)) {
+                    deviceEntitiesById.set(row.device_id, new Set());
+                }
+                deviceEntitiesById.get(row.device_id).add(row.entity_id);
+                return;
+            }
+
+            orphanEntityIds.add(row.entity_id);
+        });
+
+        if (deviceEntitiesById.size === 0 && orphanEntityIds.size === 0) {
+            return;
+        }
+
+        this.tableData = this.tableData.map(device => {
+            const entityIds = deviceEntitiesById.get(device.id);
+            if (!entityIds) {
+                return device;
+            }
+
+            const entities = (device.entities || []).map(entity => {
+                if (!entityIds.has(entity.entity_id)) {
+                    return entity;
+                }
+
+                return {
+                    ...entity,
+                    [field]: newState
+                };
+            });
+
+            return {
+                ...device,
+                entities,
+                read: this.getAggregateState(entities, 'read'),
+                write: this.getAggregateState(entities, 'write')
+            };
+        });
+
+        if (orphanEntityIds.size > 0) {
+            this.entitiesWithoutDevices = this.entitiesWithoutDevices.map(entity => {
+                if (!orphanEntityIds.has(entity.entity_id)) {
+                    return entity;
+                }
+
+                return {
+                    ...entity,
+                    [field]: newState
+                };
+            });
+        }
+
+        this.requestUpdate();
+    }
+
+    handleVisibleHelperColumnToggle(field, newState) {
+        const helperIds = new Set(this.filteredHelperRows.map(row => row.entity_id));
+        if (helperIds.size === 0) {
+            return;
+        }
+
+        this.helperTableData = this.helperTableData.map(helper => {
+            if (!helperIds.has(helper.entity_id)) {
+                return helper;
+            }
+
+            return {
+                ...helper,
+                [field]: newState
+            };
+        });
+        this.requestUpdate();
+    }
+
+    handleVisibleDashboardColumnToggle(field, newState) {
+        const dashboardIds = new Set();
+        const dashboardViewIds = new Map();
+
+        this.filteredDashboardViewRows.forEach(row => {
+            if (row.view_id) {
+                if (!dashboardViewIds.has(row.dashboard_id)) {
+                    dashboardViewIds.set(row.dashboard_id, new Set());
+                }
+                dashboardViewIds.get(row.dashboard_id).add(row.view_id);
+                return;
+            }
+
+            dashboardIds.add(row.dashboard_id);
+        });
+
+        if (dashboardIds.size === 0 && dashboardViewIds.size === 0) {
+            return;
+        }
+
+        this.dashboardsData = this.dashboardsData.map(dashboard => {
+            const shouldUpdateDashboard = dashboardIds.has(dashboard.id);
+            const viewIds = dashboardViewIds.get(dashboard.id);
+
+            if (!shouldUpdateDashboard && !viewIds) {
+                return dashboard;
+            }
+
+            if (shouldUpdateDashboard || !(dashboard.views || []).length) {
+                return {
+                    ...dashboard,
+                    [field]: newState,
+                    views: (dashboard.views || []).map(view => ({
+                        ...view,
+                        [field]: newState
+                    }))
+                };
+            }
+
+            const views = (dashboard.views || []).map(view => {
+                if (!viewIds.has(view.id)) {
+                    return view;
+                }
+
+                return {
+                    ...view,
+                    [field]: newState
+                };
+            });
+
+            return {
+                ...dashboard,
+                views,
+                [field]: this.getAggregateState(views, field)
+            };
+        });
+        this.requestUpdate();
+    }
+
     updateEntityRowCheckbox(row, field, newState) {
         if (row.device_id) {
             this.updateEntityCheckbox(row.device_id, row.entity_id, field, newState);
@@ -1120,17 +1618,7 @@ class AccessControlManager extends LitElement {
             entity[field] = newState;
         });
 
-        const allEntityStates = device.entities.map(e => e[field]);
-        const allChecked = allEntityStates.every(val => val === true);
-        const noneChecked = allEntityStates.every(val => val === false);
-
-        if (allChecked) {
-            device[field] = true;
-        } else if (noneChecked) {
-            device[field] = false;
-        } else {
-            device[field] = 'indeterminate';
-        }
+        device[field] = this.getAggregateState(device.entities, field);
 
         this.tableData = [...this.tableData];
         this.requestUpdate();
@@ -1145,11 +1633,8 @@ class AccessControlManager extends LitElement {
     
         entity[field] = newState;
     
-        const entityReads = device.entities.map(e => e.read);
-        const entityWrites = device.entities.map(e => e.write);
-    
-        device.read = entityReads.every(val => val === true) ? true : entityReads.some(val => val === true) ? "indeterminate" : false;
-        device.write = entityWrites.every(val => val === true) ? true : entityWrites.some(val => val === true) ? "indeterminate" : false;
+        device.read = this.getAggregateState(device.entities, 'read');
+        device.write = this.getAggregateState(device.entities, 'write');
         this.tableData = [...this.tableData];
         this.requestUpdate();
     }
@@ -1182,17 +1667,7 @@ class AccessControlManager extends LitElement {
 
         view[field] = newState;
 
-        const viewStates = (dashboard.views || []).map(v => v[field]);
-        const allChecked = viewStates.every(val => val === true);
-        const noneChecked = viewStates.every(val => val === false);
-
-        if (allChecked) {
-            dashboard[field] = true;
-        } else if (noneChecked) {
-            dashboard[field] = false;
-        } else {
-            dashboard[field] = 'indeterminate';
-        }
+        dashboard[field] = this.getAggregateState(dashboard.views || [], field);
 
         this.dashboardsData = [...this.dashboardsData];
         this.requestUpdate();
@@ -1202,6 +1677,8 @@ class AccessControlManager extends LitElement {
         if (this.isAnUser) {
             return null;
         }
+
+        const filteredRows = this.filteredDashboardViewRows;
 
         return html`
             <ha-card class="dashboards-card collapsible-card" header="${this.translate("dashboard_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}">
@@ -1216,10 +1693,18 @@ class AccessControlManager extends LitElement {
                                 .hass=${this.hass}
                                 .id=${'id'}
                                 .columns=${this.dashboardViewColumns}
-                                .data=${this.dashboardViewRows}
-                                .searchLabel=${this.translate("search_dashboard_views")}
+                                .data=${filteredRows}
                                 .noDataText=${this.translate("views_not_found")}
-                            ></ha-data-table>
+                            >
+                                ${this.renderDataTableToolbar(
+                                    'dashboardFilter',
+                                    this.dashboardFilter,
+                                    this.translate('search_dashboard_views'),
+                                    filteredRows,
+                                    ['visible'],
+                                    (field, newState) => this.handleVisibleDashboardColumnToggle(field, newState)
+                                )}
+                            </ha-data-table>
                         </div>
                     </div>
                     ${this.renderPermissionsCardFooter()}
@@ -1248,6 +1733,40 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    renderBulkColumnToggle(field, rows, onToggle) {
+        const state = this.getBulkColumnState(rows, field);
+        const visibleRowsLabel = this.translate('visible_rows');
+
+        return html`
+            <div class="bulk-column-toggle">
+                <ha-checkbox
+                    aria-label="${this.translate(field)} - ${visibleRowsLabel}"
+                    .checked=${state === true}
+                    .indeterminate=${state === 'indeterminate'}
+                    .disabled=${rows.length === 0 || this._isSaving}
+                    @change=${(event) => onToggle(field, event.target.checked)}
+                ></ha-checkbox>
+                <span>${this.translate(field)}</span>
+            </div>
+        `;
+    }
+
+    renderDataTableToolbar(filterKey, filterValue, searchLabel, rows, fields, onToggle) {
+        return html`
+            <div slot="header" class="data-table-toolbar">
+                <ha-textfield
+                    class="data-table-search"
+                    label="${searchLabel}"
+                    .value=${filterValue}
+                    @input=${(event) => this.handleTableFilterInput(filterKey, event)}
+                ></ha-textfield>
+                <div class="bulk-column-actions" role="group" aria-label="${this.translate('visible_rows')}">
+                    ${fields.map(field => this.renderBulkColumnToggle(field, rows, onToggle))}
+                </div>
+            </div>
+        `;
+    }
+
     renderPermissionsCardFooter() {
         return html`
             <div class="card-footer">
@@ -1274,6 +1793,8 @@ class AccessControlManager extends LitElement {
             return null;
         }
 
+        const filteredRows = this.filteredDeviceRows;
+
         return html`
             <ha-card
                 class="entites-cards collapsible-card"
@@ -1290,10 +1811,18 @@ class AccessControlManager extends LitElement {
                                 .hass=${this.hass}
                                 .id=${'id'}
                                 .columns=${this.deviceColumns}
-                                .data=${this.deviceRows}
-                                .searchLabel=${this.translate("search_devices")}
+                                .data=${filteredRows}
                                 .noDataText=${this.translate("devices_not_found")}
-                            ></ha-data-table>
+                            >
+                                ${this.renderDataTableToolbar(
+                                    'deviceFilter',
+                                    this.deviceFilter,
+                                    this.translate('search_devices'),
+                                    filteredRows,
+                                    ['read', 'write'],
+                                    (field, newState) => this.handleVisibleDeviceColumnToggle(field, newState)
+                                )}
+                            </ha-data-table>
                         </div>
                     </div>
                     ${this.renderPermissionsCardFooter()}
@@ -1306,6 +1835,8 @@ class AccessControlManager extends LitElement {
         if (this.isAnUser) {
             return null;
         }
+
+        const filteredRows = this.filteredEntityRows;
 
         return html`
             <ha-card
@@ -1323,10 +1854,18 @@ class AccessControlManager extends LitElement {
                                 .hass=${this.hass}
                                 .id=${'id'}
                                 .columns=${this.entityColumns}
-                                .data=${this.entityRows}
-                                .searchLabel=${this.translate("search_entities")}
+                                .data=${filteredRows}
                                 .noDataText=${this.translate("entities_not_found")}
-                            ></ha-data-table>
+                            >
+                                ${this.renderDataTableToolbar(
+                                    'entityFilter',
+                                    this.entityFilter,
+                                    this.translate('search_entities'),
+                                    filteredRows,
+                                    ['read', 'write'],
+                                    (field, newState) => this.handleVisibleEntityColumnToggle(field, newState)
+                                )}
+                            </ha-data-table>
                         </div>
                     </div>
                     ${this.renderPermissionsCardFooter()}
@@ -1339,6 +1878,8 @@ class AccessControlManager extends LitElement {
         if (this.isAnUser) {
             return null;
         }
+
+        const filteredRows = this.filteredHelperRows;
 
         return html`
             <ha-card
@@ -1356,10 +1897,18 @@ class AccessControlManager extends LitElement {
                                 .hass=${this.hass}
                                 .id=${'id'}
                                 .columns=${this.helperColumns}
-                                .data=${this.helperRows}
-                                .searchLabel=${this.translate("search_helpers")}
+                                .data=${filteredRows}
                                 .noDataText=${this.translate("helpers_not_found")}
-                            ></ha-data-table>
+                            >
+                                ${this.renderDataTableToolbar(
+                                    'helperFilter',
+                                    this.helperFilter,
+                                    this.translate('search_helpers'),
+                                    filteredRows,
+                                    ['read', 'write'],
+                                    (field, newState) => this.handleVisibleHelperColumnToggle(field, newState)
+                                )}
+                            </ha-data-table>
                         </div>
                     </div>
                     ${this.renderPermissionsCardFooter()}
@@ -1397,6 +1946,7 @@ class AccessControlManager extends LitElement {
                         <div class="filters">
                             <ha-form
                                 .hass=${this.hass}
+                                .data=${{ [this.translate("user")]: this.selectedUserId || "" }}
                                 .schema=${[
                                     {
                                         name: this.translate("user"),
@@ -1415,6 +1965,7 @@ class AccessControlManager extends LitElement {
                             ></ha-form>
                             <ha-form
                                 .hass=${this.hass}
+                                .data=${{ [this.translate("group")]: this.selectedGroupId || "" }}
                                 .schema=${[
                                     {
                                         name: this.translate("group"),
@@ -1446,6 +1997,7 @@ class AccessControlManager extends LitElement {
                             >
                                 ${this.translate("restart")}
                             </ha-button>
+                            ${this.renderSelectedGroupActions()}
                         </div>
                     </div>
                 </ha-card>
@@ -1484,13 +2036,16 @@ class AccessControlManager extends LitElement {
                                             >
                                                 <ha-icon icon="mdi:content-copy"></ha-icon>
                                             </ha-button>
+                                            ${this.renderInlineRenameGroupButton(group)}
+                                            ${this.renderInlineDeleteGroupButton(group)}
                                         `}
                                     </div>
                                 </div>`
                             })}
                             <div class="new-group-input">
                                 <ha-button
-                                    @click=${() => this.openCreateGroup = true}
+                                    @click=${this.openCreateGroupDialog}
+                                    .disabled=${this._isSaving}
                                 >
                                     ${this.translate("create_new_group")}
                                 </ha-button>
@@ -1511,6 +2066,7 @@ class AccessControlManager extends LitElement {
                                 <ha-dialog 
                                     .open=${this.openCreateGroup}
                                     header-title="${this.translate("create_new_group")}" 
+                                    @closed=${this.closeCreateGroupDialog}
                                 >
                                     <div>
                                         <ha-textfield 
@@ -1527,7 +2083,7 @@ class AccessControlManager extends LitElement {
                                             appearance="plain"
                                             dialogAction="cancel"
                                             slot="secondaryAction"
-                                            @click="${(e) => this.openCreateGroup = false}"
+                                            @click=${this.closeCreateGroupDialog}
                                         >
                                             ${this.translate("cancel")}
                                         </ha-button>
@@ -1535,7 +2091,8 @@ class AccessControlManager extends LitElement {
                                             appearance="plain"
                                             dialogAction="save"
                                             slot="primaryAction"
-                                            @click="${this.handleNewGroupSave}"
+                                            @click=${this.handleNewGroupSave}
+                                            .disabled=${this._isSaving}
                                         >
                                             ${this.translate("save")}
                                         </ha-button>
@@ -1553,7 +2110,7 @@ class AccessControlManager extends LitElement {
                                             required
                                             validationMessage="${this.translate("enter_group_name")}" 
                                             .value="${this.duplicateGroupName}"
-                                            @input="${this.handleDuplicateGroupInput}"
+                                            @input=${this.handleDuplicateGroupInput}
                                         ></ha-textfield>
                                     </div>
                                     <ha-dialog-footer slot="footer">
@@ -1607,6 +2164,64 @@ class AccessControlManager extends LitElement {
                     @click=${this.confirmRestart}
                 >
                     ${this.translate("confirm")}
+                </ha-button>
+            </ha-dialog-footer>
+        </ha-dialog>
+        <ha-dialog
+            .open=${this.renameGroupDialogOpen}
+            header-title="${this.translate("rename_group")}"
+            @closed=${this.closeRenameGroupDialog}
+        >
+            <div>
+                <ha-textfield
+                    class="rename-group-input"
+                    label="${this.translate("group_name")}"
+                    required
+                    validationMessage="${this.translate("enter_group_name")}"
+                    .value="${this.renameGroupName}"
+                    @input=${this.handleRenameGroupInput}
+                ></ha-textfield>
+            </div>
+            <ha-dialog-footer slot="footer">
+                <ha-button
+                    appearance="plain"
+                    dialogAction="cancel"
+                    slot="secondaryAction"
+                    @click=${this.closeRenameGroupDialog}
+                >
+                    ${this.translate("cancel")}
+                </ha-button>
+                <ha-button
+                    appearance="plain"
+                    dialogAction="save"
+                    slot="primaryAction"
+                    @click=${this.handleRenameGroupSave}
+                    .disabled=${this._isSaving}
+                >
+                    ${this.translate("save")}
+                </ha-button>
+            </ha-dialog-footer>
+        </ha-dialog>
+        <ha-dialog
+            .open=${this.deleteGroupDialogOpen}
+            header-title="${this.translate("confirm_delete_group_title")}"
+            @closed=${this.closeDeleteGroupDialog}
+        >
+            <p>${this.translate("confirm_delete_group_description")}</p>
+            <ha-dialog-footer slot="footer">
+                <ha-button
+                    slot="secondaryAction"
+                    @click=${this.closeDeleteGroupDialog}
+                >
+                    ${this.translate("cancel")}
+                </ha-button>
+                <ha-button
+                    variant="danger"
+                    slot="primaryAction"
+                    @click=${this.handleDeleteGroupConfirm}
+                    .disabled=${this._isSaving}
+                >
+                    ${this.translate("delete_group")}
                 </ha-button>
             </ha-dialog-footer>
         </ha-dialog>
@@ -1717,10 +2332,6 @@ class AccessControlManager extends LitElement {
                 margin-right: 10px;
             }
 
-            .search-input {
-                margin-left: auto;
-            }
-
             .group-card,
             .entites-cards,
             .entities-card,
@@ -1764,11 +2375,23 @@ class AccessControlManager extends LitElement {
                 gap: 8px;
             }
 
+            .group-action-button {
+                min-width: 0;
+            }
+
             .duplicate-group-button {
                 min-width: 0;
             }
 
+            .delete-group-button-wrapper {
+                display: inline-flex;
+            }
+
             .duplicate-group-button ha-icon {
+                --mdc-icon-size: 18px;
+            }
+
+            .group-action-button ha-icon {
                 --mdc-icon-size: 18px;
             }
 
@@ -1786,6 +2409,36 @@ class AccessControlManager extends LitElement {
 
             .data-table-section {
                 padding: 16px;
+            }
+
+            .data-table-toolbar {
+                display: flex;
+                align-items: flex-end;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 0 0 16px;
+                flex-wrap: wrap;
+            }
+
+            .data-table-search {
+                flex: 1 1 260px;
+                min-width: min(100%, 260px);
+            }
+
+            .bulk-column-actions {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .bulk-column-toggle {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                color: var(--primary-text-color);
+                white-space: nowrap;
             }
 
             .data-table-container {
@@ -1851,6 +2504,14 @@ class AccessControlManager extends LitElement {
             }
 
             @media (max-width: 800px) {
+                .data-table-toolbar {
+                    align-items: stretch;
+                }
+
+                .bulk-column-actions {
+                    justify-content: flex-start;
+                }
+
                 .devices-table-container {
                     height: 360px;
                 }

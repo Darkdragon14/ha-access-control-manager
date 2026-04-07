@@ -65,6 +65,27 @@
             "duplicate_group_tooltip": {
                 "name": "Duplicate this group"
             },
+            "rename_group": {
+                "name": "Rename group"
+            },
+            "rename_group_tooltip": {
+                "name": "Rename this group"
+            },
+            "delete_group": {
+                "name": "Delete group"
+            },
+            "delete_group_tooltip": {
+                "name": "Delete this group"
+            },
+            "delete_group_disabled_tooltip": {
+                "name": "Cannot delete this group: at least one user is linked to it"
+            },
+            "confirm_delete_group_title": {
+                "name": "Confirm group deletion"
+            },
+            "confirm_delete_group_description": {
+                "name": "Are you sure you want to delete this group?"
+            },
             "copy_suffix": {
                 "name": "copy"
             },
@@ -166,6 +187,9 @@
             },
             "entire_dashboard": {
                 "name": "Entire dashboard"
+            },
+            "visible_rows": {
+                "name": "Visible rows"
             }
         }
     }
