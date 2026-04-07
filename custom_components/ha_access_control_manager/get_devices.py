@@ -2,12 +2,75 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.core import HomeAssistant
 from homeassistant.components import websocket_api
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from datetime import datetime
+from homeassistant.loader import IntegrationNotFound, async_get_integration
 
-def convert_device_entry(device):
+
+async def _resolve_integration_name(
+    hass: HomeAssistant, domain: str, cache: dict[str, str]
+) -> str:
+    """Resolve a human-readable integration name from a domain."""
+    if domain in cache:
+        return cache[domain]
+
+    try:
+        integration = await async_get_integration(hass, domain)
+        name = integration.name
+    except IntegrationNotFound:
+        name = domain
+
+    cache[domain] = name
+    return name
+
+
+async def _resolve_device_integrations(
+    hass: HomeAssistant, config_entry_ids, cache: dict[str, str]
+) -> str | None:
+    """Resolve integration labels from linked config entries."""
+    integration_names: list[str] = []
+    seen: set[str] = set()
+
+    for entry_id in config_entry_ids:
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None:
+            continue
+
+        label = await _resolve_integration_name(hass, entry.domain, cache)
+        if label in seen:
+            continue
+
+        seen.add(label)
+        integration_names.append(label)
+
+    if not integration_names:
+        return None
+
+    return ", ".join(integration_names)
+
+
+def _resolve_area_name(area_registry, area_id: str | None) -> str | None:
+    """Resolve area name from area registry."""
+    if not area_id:
+        return None
+
+    area_entry = area_registry.async_get_area(area_id)
+    if area_entry is None:
+        return None
+
+    return area_entry.name
+
+
+async def convert_device_entry(
+    hass: HomeAssistant, area_registry, device, integration_name_cache: dict[str, str]
+):
     """Convertit un DeviceEntry en dictionnaire JSON-compatible."""
+    integration = await _resolve_device_integrations(
+        hass, device.config_entries, integration_name_cache
+    )
+    area = _resolve_area_name(area_registry, device.area_id)
+
     return {
         "id": device.id,
         "name": device.name or "Unknown",
@@ -24,11 +87,16 @@ def convert_device_entry(device):
         "modified_at": device.modified_at.isoformat() if device.modified_at else None,
         "entry_type": device.entry_type.value if device.entry_type else None,
         "is_new": getattr(device, "is_new", False),
+        "area_id": device.area_id,
+        "area": area,
+        "integration": integration,
         "entities": []  # Initialisation de la liste des entités associées
     }
 
-def convert_entity_entry(entity):
+def convert_entity_entry(entity, area_registry):
     """Convertit un EntityEntry en dictionnaire JSON-compatible."""
+    area_id = getattr(entity, "area_id", None)
+
     return {
         "entity_id": entity.entity_id,
         "name": entity.name or "Unknown",
@@ -37,6 +105,8 @@ def convert_entity_entry(entity):
         "unique_id": entity.unique_id,
         "disabled_by": entity.disabled_by,
         "original_name": entity.original_name,
+        "area_id": area_id,
+        "area": _resolve_area_name(area_registry, area_id),
     }
 
 @websocket_api.websocket_command({vol.Required("type"): "ha_access_control/list_devices"})
@@ -47,9 +117,15 @@ async def list_devices(
 ) -> None:
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
+    area_registry = ar.async_get(hass)
+    integration_name_cache: dict[str, str] = {}
 
     # Récupération des devices sous forme de dictionnaire (id -> objet JSON)
-    devices = {device.id: convert_device_entry(device) for device in device_registry.devices.values()}
+    devices = {}
+    for device in device_registry.devices.values():
+        devices[device.id] = await convert_device_entry(
+            hass, area_registry, device, integration_name_cache
+        )
 
     # Initialisation du "device" fictif pour les entités sans device
     without_devices = {
@@ -68,12 +144,15 @@ async def list_devices(
         "modified_at": None,
         "entry_type": None,
         "is_new": False,
+        "area_id": None,
+        "area": None,
+        "integration": None,
         "entities": []
     }
 
     # Récupération des entités et association aux devices
     for entity in entity_registry.entities.values():
-        entity_data = convert_entity_entry(entity)
+        entity_data = convert_entity_entry(entity, area_registry)
         device_id = entity_data["device_id"]
 
         if device_id and device_id in devices:

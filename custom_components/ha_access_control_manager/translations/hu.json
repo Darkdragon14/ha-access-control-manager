@@ -92,6 +92,9 @@
             "device_permissions_for": {
                 "name": "Eszköz engedélye"
             },
+            "entity_permissions_for": {
+                "name": "Entitás engedélyei ehhez"
+            },
             "select_an_user_or_a_group": {
                 "name": "Kérlek, válassz egy csoportot"
             },
@@ -100,6 +103,15 @@
             },
             "name": {
                 "name": "Név"
+            },
+            "device": {
+                "name": "Eszköz"
+            },
+            "integration": {
+                "name": "Integráció"
+            },
+            "area": {
+                "name": "Terület"
             },
             "entity_id": {
                 "name": "Entitás azonosító"
@@ -112,6 +124,12 @@
             },
             "search_by_name": {
                 "name": "Keresés név alapján"
+            },
+            "search_devices": {
+                "name": "Eszközök keresése"
+            },
+            "search_entities": {
+                "name": "Entitások keresése"
             },
             "custom_group_warning": {
                 "name": "Figyelem, van egy egyedi csoportod, aminek nincsenek szabályai. Kérlek, adj hozzá legalább egy szabályt, mielőtt újraindítod a Home Assistant-ot."
@@ -140,8 +158,38 @@
             "entities_without_devices_permissions_for": {
                 "name": "Eszköz nélküli entitások engedélyei ehhez"
             },
+            "without_device": {
+                "name": "Eszköz nélkül"
+            },
+            "devices_not_found": {
+                "name": "Nem található eszköz"
+            },
             "helpers_not_found": {
                 "name": "Nem található segéd"
+            },
+            "dashboard": {
+                "name": "Dashboard"
+            },
+            "view": {
+                "name": "Nézet"
+            },
+            "path": {
+                "name": "Útvonal"
+            },
+            "type": {
+                "name": "Típus"
+            },
+            "search_helpers": {
+                "name": "Segédek keresése"
+            },
+            "search_dashboard_views": {
+                "name": "Dashboard nézetek keresése"
+            },
+            "entire_dashboard": {
+                "name": "Teljes dashboard"
+            },
+            "visible_rows": {
+                "name": "Látható sorok"
             }
         }
     }

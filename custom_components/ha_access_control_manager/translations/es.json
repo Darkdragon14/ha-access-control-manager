@@ -92,6 +92,9 @@
             "device_permissions_for": {
                 "name": "Permisos del dispositivo para"
             },
+            "entity_permissions_for": {
+                "name": "Permisos de entidades para"
+            },
             "select_an_user_or_a_group": {
                 "name": "Por favor, seleccione un grupo"
             },
@@ -100,6 +103,15 @@
             },
             "name": {
                 "name": "Nombre"
+            },
+            "device": {
+                "name": "Dispositivo"
+            },
+            "integration": {
+                "name": "Integración"
+            },
+            "area": {
+                "name": "Área"
             },
             "entity_id": {
                 "name": "ID de la entidad"
@@ -112,6 +124,12 @@
             },
             "search_by_name": {
                 "name": "Buscar por nombre"
+            },
+            "search_devices": {
+                "name": "Buscar dispositivos"
+            },
+            "search_entities": {
+                "name": "Buscar entidades"
             },
             "custom_group_warning": {
                 "name": "Atención, tiene un grupo personalizado sin políticas declaradas. Por favor, establezca al menos una política antes de reiniciar Home Assistant"
@@ -140,8 +158,38 @@
             "entities_without_devices_permissions_for": {
                 "name": "Permisos de entidades sin dispositivos para"
             },
+            "without_device": {
+                "name": "Sin dispositivo"
+            },
+            "devices_not_found": {
+                "name": "No se encontraron dispositivos"
+            },
             "helpers_not_found": {
                 "name": "No se encontraron helpers"
+            },
+            "dashboard": {
+                "name": "Panel"
+            },
+            "view": {
+                "name": "Vista"
+            },
+            "path": {
+                "name": "Ruta"
+            },
+            "type": {
+                "name": "Tipo"
+            },
+            "search_helpers": {
+                "name": "Buscar helpers"
+            },
+            "search_dashboard_views": {
+                "name": "Buscar vistas de paneles"
+            },
+            "entire_dashboard": {
+                "name": "Panel completo"
+            },
+            "visible_rows": {
+                "name": "Filas visibles"
             }
         }
     }

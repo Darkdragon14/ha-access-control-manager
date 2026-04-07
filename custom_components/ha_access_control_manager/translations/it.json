@@ -92,6 +92,9 @@
             "device_permissions_for": {
                 "name": "Permessi del dispositivo per"
             },
+            "entity_permissions_for": {
+                "name": "Permessi delle entità per"
+            },
             "select_an_user_or_a_group": {
                 "name": "Seleziona un gruppo"
             },
@@ -100,6 +103,15 @@
             },
             "name": {
                 "name": "Nome"
+            },
+            "device": {
+                "name": "Dispositivo"
+            },
+            "integration": {
+                "name": "Integrazione"
+            },
+            "area": {
+                "name": "Area"
             },
             "entity_id": {
                 "name": "ID dell'entità"
@@ -112,6 +124,12 @@
             },
             "search_by_name": {
                 "name": "Cerca per nome"
+            },
+            "search_devices": {
+                "name": "Cerca dispositivi"
+            },
+            "search_entities": {
+                "name": "Cerca entità"
             },
             "custom_group_warning": {
                 "name": "Attenzione, hai un gruppo personalizzato senza policy dichiarate. Imposta almeno una policy prima di riavviare Home Assistant"
@@ -140,8 +158,38 @@
             "entities_without_devices_permissions_for": {
                 "name": "Permessi delle entità senza dispositivi per"
             },
+            "without_device": {
+                "name": "Senza dispositivo"
+            },
+            "devices_not_found": {
+                "name": "Nessun dispositivo trovato"
+            },
             "helpers_not_found": {
                 "name": "Nessun helper trovato"
+            },
+            "dashboard": {
+                "name": "Dashboard"
+            },
+            "view": {
+                "name": "Vista"
+            },
+            "path": {
+                "name": "Percorso"
+            },
+            "type": {
+                "name": "Tipo"
+            },
+            "search_helpers": {
+                "name": "Cerca helper"
+            },
+            "search_dashboard_views": {
+                "name": "Cerca viste dashboard"
+            },
+            "entire_dashboard": {
+                "name": "Dashboard completo"
+            },
+            "visible_rows": {
+                "name": "Righe visibili"
             }
         }
     }

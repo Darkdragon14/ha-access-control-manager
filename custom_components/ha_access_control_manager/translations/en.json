@@ -92,6 +92,9 @@
             "device_permissions_for": {
                 "name": "Device permissions for"
             },
+            "entity_permissions_for": {
+                "name": "Entity permissions for"
+            },
             "select_an_user_or_a_group": {
                 "name": "Please select a group"
             },
@@ -100,6 +103,15 @@
             },
             "name": {
                 "name": "Name"
+            },
+            "device": {
+                "name": "Device"
+            },
+            "integration": {
+                "name": "Integration"
+            },
+            "area": {
+                "name": "Area"
             },
             "entity_id": {
                 "name": "Entity ID"
@@ -112,6 +124,12 @@
             },
             "search_by_name": {
                 "name": "Search by name"
+            },
+            "search_devices": {
+                "name": "Search devices"
+            },
+            "search_entities": {
+                "name": "Search entities"
             },
             "custom_group_warning": {
                 "name": "Warning, you have a custom group with no declared policies. Please set at least one policy before restarting Home Assistant"
@@ -140,8 +158,38 @@
             "entities_without_devices_permissions_for": {
                 "name": "Entities without devices permissions for"
             },
+            "without_device": {
+                "name": "Without device"
+            },
+            "devices_not_found": {
+                "name": "No devices found"
+            },
             "helpers_not_found": {
                 "name": "No helpers found"
+            },
+            "dashboard": {
+                "name": "Dashboard"
+            },
+            "view": {
+                "name": "View"
+            },
+            "path": {
+                "name": "Path"
+            },
+            "type": {
+                "name": "Type"
+            },
+            "search_helpers": {
+                "name": "Search helpers"
+            },
+            "search_dashboard_views": {
+                "name": "Search dashboard views"
+            },
+            "entire_dashboard": {
+                "name": "Entire dashboard"
+            },
+            "visible_rows": {
+                "name": "Visible rows"
             }
         }
     }
