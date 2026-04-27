@@ -161,6 +161,9 @@
             "helper_permissions_for": {
                 "name": "Helper permissions for"
             },
+            "label_permissions_for": {
+                "name": "Label permissions for"
+            },
             "entities_without_devices_permissions_for": {
                 "name": "Entities without devices permissions for"
             },
@@ -172,6 +175,9 @@
             },
             "helpers_not_found": {
                 "name": "No helpers found"
+            },
+            "labels_not_found": {
+                "name": "No labels found"
             },
             "dashboard": {
                 "name": "Dashboard"
@@ -187,6 +193,9 @@
             },
             "search_helpers": {
                 "name": "Search helpers"
+            },
+            "search_labels": {
+                "name": "Search labels"
             },
             "search_dashboard_views": {
                 "name": "Search dashboard views"

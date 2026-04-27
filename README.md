@@ -31,6 +31,12 @@ To set up custom access management, you need to follow these steps:
 2.  **Unassign the `Users` group**: For the users you want to restrict, you must remove them from the default `Users` group. As explained in the [Home Assistant developer documentation](https://developers.home-assistant.io/docs/auth_permissions/#merging-policies), policies are merged, and the `Users` group grants broad permissions by default. To apply restrictive policies, the user must not be a member of the `Users` group.
 3.  **Set permissions**: Assign the desired permissions to the new group you have created.
 
+## Label permissions
+
+The **Label permissions** section is a bulk-edit helper for entities, helpers, and devices that directly use a Home Assistant label. When you select read or write for a label, Access Control Manager applies that permission to the currently loaded matching entities and saves them as individual entity permissions.
+
+This does not create a persistent Home Assistant label policy. If you add a new device or entity later and assign the same label to it, the new item will not automatically receive those permissions. Reopen the group permissions, apply the label permission again, and save to include new matching items.
+
 ## Customizable options
 
 |Option Name|Description|required|default Value|
