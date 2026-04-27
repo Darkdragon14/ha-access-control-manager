@@ -196,6 +196,78 @@
             },
             "visible_rows": {
                 "name": "Sichtbare Zeilen"
+            },
+            "filters": {
+                "name": "Filter"
+            },
+            "clear_filters": {
+                "name": "Filter löschen"
+            },
+            "no_filter_options": {
+                "name": "Keine Optionen verfügbar"
+            },
+            "permissions": {
+                "name": "Berechtigungen"
+            },
+            "status": {
+                "name": "Status"
+            },
+            "areas": {
+                "name": "Bereiche"
+            },
+            "integrations": {
+                "name": "Integrationen"
+            },
+            "devices": {
+                "name": "Geräte"
+            },
+            "domains": {
+                "name": "Domains"
+            },
+            "labels": {
+                "name": "Labels"
+            },
+            "categories": {
+                "name": "Kategorien"
+            },
+            "voice_assistants": {
+                "name": "Sprachassistenten"
+            },
+            "enabled": {
+                "name": "Aktiviert"
+            },
+            "disabled": {
+                "name": "Deaktiviert"
+            },
+            "hidden": {
+                "name": "Ausgeblendet"
+            },
+            "no_area": {
+                "name": "Kein Bereich"
+            },
+            "no_device": {
+                "name": "Kein Gerät"
+            },
+            "no_category": {
+                "name": "Keine Kategorie"
+            },
+            "selected_read": {
+                "name": "Lesen ausgewählt"
+            },
+            "selected_write": {
+                "name": "Schreiben ausgewählt"
+            },
+            "read_only": {
+                "name": "Nur lesen"
+            },
+            "full_access": {
+                "name": "Vollzugriff"
+            },
+            "no_access": {
+                "name": "Kein Zugriff"
+            },
+            "partial_access": {
+                "name": "Teilzugriff"
             }
         }
     }

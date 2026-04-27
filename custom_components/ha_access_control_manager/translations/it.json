@@ -196,6 +196,78 @@
             },
             "visible_rows": {
                 "name": "Righe visibili"
+            },
+            "filters": {
+                "name": "Filtri"
+            },
+            "clear_filters": {
+                "name": "Cancella filtri"
+            },
+            "no_filter_options": {
+                "name": "Nessuna opzione disponibile"
+            },
+            "permissions": {
+                "name": "Permessi"
+            },
+            "status": {
+                "name": "Stato"
+            },
+            "areas": {
+                "name": "Aree"
+            },
+            "integrations": {
+                "name": "Integrazioni"
+            },
+            "devices": {
+                "name": "Dispositivi"
+            },
+            "domains": {
+                "name": "Domini"
+            },
+            "labels": {
+                "name": "Etichette"
+            },
+            "categories": {
+                "name": "Categorie"
+            },
+            "voice_assistants": {
+                "name": "Assistenti vocali"
+            },
+            "enabled": {
+                "name": "Abilitato"
+            },
+            "disabled": {
+                "name": "Disabilitato"
+            },
+            "hidden": {
+                "name": "Nascosto"
+            },
+            "no_area": {
+                "name": "Nessuna area"
+            },
+            "no_device": {
+                "name": "Nessun dispositivo"
+            },
+            "no_category": {
+                "name": "Nessuna categoria"
+            },
+            "selected_read": {
+                "name": "Lettura selezionata"
+            },
+            "selected_write": {
+                "name": "Scrittura selezionata"
+            },
+            "read_only": {
+                "name": "Solo lettura"
+            },
+            "full_access": {
+                "name": "Accesso completo"
+            },
+            "no_access": {
+                "name": "Nessun accesso"
+            },
+            "partial_access": {
+                "name": "Accesso parziale"
             }
         }
     }

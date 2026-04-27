@@ -196,6 +196,78 @@
             },
             "visible_rows": {
                 "name": "Visible rows"
+            },
+            "filters": {
+                "name": "Filters"
+            },
+            "clear_filters": {
+                "name": "Clear filters"
+            },
+            "no_filter_options": {
+                "name": "No options available"
+            },
+            "permissions": {
+                "name": "Permissions"
+            },
+            "status": {
+                "name": "Status"
+            },
+            "areas": {
+                "name": "Areas"
+            },
+            "integrations": {
+                "name": "Integrations"
+            },
+            "devices": {
+                "name": "Devices"
+            },
+            "domains": {
+                "name": "Domains"
+            },
+            "labels": {
+                "name": "Labels"
+            },
+            "categories": {
+                "name": "Categories"
+            },
+            "voice_assistants": {
+                "name": "Voice assistants"
+            },
+            "enabled": {
+                "name": "Enabled"
+            },
+            "disabled": {
+                "name": "Disabled"
+            },
+            "hidden": {
+                "name": "Hidden"
+            },
+            "no_area": {
+                "name": "No area"
+            },
+            "no_device": {
+                "name": "No device"
+            },
+            "no_category": {
+                "name": "No category"
+            },
+            "selected_read": {
+                "name": "Read selected"
+            },
+            "selected_write": {
+                "name": "Write selected"
+            },
+            "read_only": {
+                "name": "Read only"
+            },
+            "full_access": {
+                "name": "Full access"
+            },
+            "no_access": {
+                "name": "No access"
+            },
+            "partial_access": {
+                "name": "Partial access"
             }
         }
     }

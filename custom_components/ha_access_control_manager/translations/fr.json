@@ -196,6 +196,78 @@
             },
             "visible_rows": {
                 "name": "Lignes visibles"
+            },
+            "filters": {
+                "name": "Filtres"
+            },
+            "clear_filters": {
+                "name": "Effacer les filtres"
+            },
+            "no_filter_options": {
+                "name": "Aucune option disponible"
+            },
+            "permissions": {
+                "name": "Autorisations"
+            },
+            "status": {
+                "name": "Statut"
+            },
+            "areas": {
+                "name": "Zones"
+            },
+            "integrations": {
+                "name": "Intégrations"
+            },
+            "devices": {
+                "name": "Appareils"
+            },
+            "domains": {
+                "name": "Domaines"
+            },
+            "labels": {
+                "name": "Étiquettes"
+            },
+            "categories": {
+                "name": "Catégories"
+            },
+            "voice_assistants": {
+                "name": "Assistants vocaux"
+            },
+            "enabled": {
+                "name": "Activé"
+            },
+            "disabled": {
+                "name": "Désactivé"
+            },
+            "hidden": {
+                "name": "Masqué"
+            },
+            "no_area": {
+                "name": "Aucune zone"
+            },
+            "no_device": {
+                "name": "Aucun appareil"
+            },
+            "no_category": {
+                "name": "Aucune catégorie"
+            },
+            "selected_read": {
+                "name": "Lecture sélectionnée"
+            },
+            "selected_write": {
+                "name": "Écriture sélectionnée"
+            },
+            "read_only": {
+                "name": "Lecture seule"
+            },
+            "full_access": {
+                "name": "Accès complet"
+            },
+            "no_access": {
+                "name": "Aucun accès"
+            },
+            "partial_access": {
+                "name": "Accès partiel"
             }
         }
     }

@@ -196,6 +196,78 @@
             },
             "visible_rows": {
                 "name": "Filas visibles"
+            },
+            "filters": {
+                "name": "Filtros"
+            },
+            "clear_filters": {
+                "name": "Borrar filtros"
+            },
+            "no_filter_options": {
+                "name": "No hay opciones disponibles"
+            },
+            "permissions": {
+                "name": "Permisos"
+            },
+            "status": {
+                "name": "Estado"
+            },
+            "areas": {
+                "name": "Áreas"
+            },
+            "integrations": {
+                "name": "Integraciones"
+            },
+            "devices": {
+                "name": "Dispositivos"
+            },
+            "domains": {
+                "name": "Dominios"
+            },
+            "labels": {
+                "name": "Etiquetas"
+            },
+            "categories": {
+                "name": "Categorías"
+            },
+            "voice_assistants": {
+                "name": "Asistentes de voz"
+            },
+            "enabled": {
+                "name": "Activado"
+            },
+            "disabled": {
+                "name": "Desactivado"
+            },
+            "hidden": {
+                "name": "Oculto"
+            },
+            "no_area": {
+                "name": "Sin área"
+            },
+            "no_device": {
+                "name": "Sin dispositivo"
+            },
+            "no_category": {
+                "name": "Sin categoría"
+            },
+            "selected_read": {
+                "name": "Lectura seleccionada"
+            },
+            "selected_write": {
+                "name": "Escritura seleccionada"
+            },
+            "read_only": {
+                "name": "Solo lectura"
+            },
+            "full_access": {
+                "name": "Acceso completo"
+            },
+            "no_access": {
+                "name": "Sin acceso"
+            },
+            "partial_access": {
+                "name": "Acceso parcial"
             }
         }
     }
