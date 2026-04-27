@@ -161,6 +161,9 @@
             "helper_permissions_for": {
                 "name": "Segédek engedélyei ehhez"
             },
+            "label_permissions_for": {
+                "name": "Címke engedélyei ehhez"
+            },
             "entities_without_devices_permissions_for": {
                 "name": "Eszköz nélküli entitások engedélyei ehhez"
             },
@@ -172,6 +175,9 @@
             },
             "helpers_not_found": {
                 "name": "Nem található segéd"
+            },
+            "labels_not_found": {
+                "name": "Nem található címke"
             },
             "dashboard": {
                 "name": "Dashboard"
@@ -187,6 +193,9 @@
             },
             "search_helpers": {
                 "name": "Segédek keresése"
+            },
+            "search_labels": {
+                "name": "Címkék keresése"
             },
             "search_dashboard_views": {
                 "name": "Dashboard nézetek keresése"

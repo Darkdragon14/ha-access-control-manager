@@ -16,6 +16,7 @@ class AccessControlManager extends LitElement {
             tableData: { type: Array },
             dashboardsData: { type: Array },
             helperTableData: { type: Array },
+            labelTableData: { type: Array },
             entitiesWithoutDevices: { type: Array },
             dataUsers: { type: Array },
             dataGroups: { type: Array },
@@ -37,6 +38,7 @@ class AccessControlManager extends LitElement {
             deviceFilter: { type: String },
             entityFilter: { type: String },
             helperFilter: { type: String },
+            labelFilter: { type: String },
             dashboardFilter: { type: String },
             deviceAdvancedFilters: { type: Object },
             entityAdvancedFilters: { type: Object },
@@ -48,6 +50,7 @@ class AccessControlManager extends LitElement {
             dashboardsCollapsed: { type: Boolean },
             devicesCollapsed: { type: Boolean },
             entitiesCollapsed: { type: Boolean },
+            labelsCollapsed: { type: Boolean },
             helpersCollapsed: { type: Boolean }
         };
     }
@@ -58,6 +61,7 @@ class AccessControlManager extends LitElement {
         this.tableData = [];
         this.dashboardsData = [];
         this.helperTableData = [];
+        this.labelTableData = [];
         this.entitiesWithoutDevices = [];
         this.dataUsers = [];
         this.dataGroups = [];
@@ -80,6 +84,7 @@ class AccessControlManager extends LitElement {
         this.deviceFilter = '';
         this.entityFilter = '';
         this.helperFilter = '';
+        this.labelFilter = '';
         this.dashboardFilter = '';
         this.deviceAdvancedFilters = {};
         this.entityAdvancedFilters = {};
@@ -93,6 +98,7 @@ class AccessControlManager extends LitElement {
         this.dashboardsCollapsed = true;
         this.devicesCollapsed = true;
         this.entitiesCollapsed = true;
+        this.labelsCollapsed = true;
         this.helpersCollapsed = true;
     }
 
@@ -104,6 +110,7 @@ class AccessControlManager extends LitElement {
         this.deviceFilter = '';
         this.entityFilter = '';
         this.helperFilter = '';
+        this.labelFilter = '';
         this.dashboardFilter = '';
         this.deviceAdvancedFilters = {};
         this.entityAdvancedFilters = {};
@@ -539,6 +546,7 @@ class AccessControlManager extends LitElement {
             this.fetchDevices();
             this.fetchDashboards();
             this.fetchHelpers();
+            this.fetchLabels();
             this.needToFetch = false;
         }
         super.update(changedProperties);
@@ -620,6 +628,12 @@ class AccessControlManager extends LitElement {
             if (this.selected && !this.isAnUser && this.selected.id) {
                 this.loadData(this.selected);
             }
+        });
+    }
+
+    fetchLabels() {
+        this.hass.callWS({ type: 'ha_access_control/list_labels' }).then(labels => {
+            this.labelTableData = Array.isArray(labels) ? labels : [];
         });
     }
 
@@ -1630,6 +1644,142 @@ class AccessControlManager extends LitElement {
         }));
     }
 
+    get labelColumns() {
+        return {
+            name: {
+                title: this.translate("name"),
+                sortable: true,
+                filterable: true,
+                flex: 2,
+            },
+            read: {
+                title: this.translate("read"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.read === true}
+                        .indeterminate=${row.read === 'indeterminate'}
+                        @change=${(event) => this.updateLabelCheckbox(row.id, 'read', event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+            write: {
+                title: this.translate("write"),
+                minWidth: "88px",
+                maxWidth: "88px",
+                template: (row) => html`
+                    <ha-checkbox
+                        .checked=${row.write === true}
+                        .indeterminate=${row.write === 'indeterminate'}
+                        @change=${(event) => this.updateLabelCheckbox(row.id, 'write', event.target.checked)}
+                    ></ha-checkbox>
+                `,
+            },
+        };
+    }
+
+    get labelRows() {
+        return this.getAllLabelDefinitions().map(label => {
+            const targets = this.getLabelPermissionTargets(label.id);
+
+            return {
+                id: label.id,
+                name: label.name || label.id,
+                read: this.getAggregateState(targets, 'read'),
+                write: this.getAggregateState(targets, 'write'),
+            };
+        });
+    }
+
+    collectLabelsFromItem(labelsMap, item) {
+        (item?.labels || []).forEach(label => {
+            const labelId = label.id || label;
+            if (!labelId || labelsMap.has(labelId)) {
+                return;
+            }
+
+            labelsMap.set(labelId, {
+                id: labelId,
+                name: label.name || labelId,
+            });
+        });
+    }
+
+    getAllLabelDefinitions() {
+        const labelsMap = new Map();
+
+        (this.labelTableData || []).forEach(label => (
+            this.collectLabelsFromItem(labelsMap, { labels: [label] })
+        ));
+
+        (this.tableData || []).forEach(device => {
+            this.collectLabelsFromItem(labelsMap, device);
+            (device.entities || []).forEach(entity => this.collectLabelsFromItem(labelsMap, entity));
+        });
+        (this.entitiesWithoutDevices || []).forEach(entity => this.collectLabelsFromItem(labelsMap, entity));
+        (this.helperTableData || []).forEach(helper => this.collectLabelsFromItem(labelsMap, helper));
+
+        return [...labelsMap.values()]
+            .sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }));
+    }
+
+    itemHasLabel(item, labelId) {
+        return this.itemHasDirectLabel(item, labelId);
+    }
+
+    itemHasAnyLabel(item, labelIds) {
+        return this.itemHasAnyDirectLabel(item, labelIds);
+    }
+
+    itemHasDirectLabel(item, labelId) {
+        return (item?.labels || []).some(label => (label.id || label) === labelId);
+    }
+
+    itemHasAnyDirectLabel(item, labelIds) {
+        return (item?.labels || []).some(label => labelIds.has(label.id || label));
+    }
+
+    getDeviceIdsWithAnyDirectLabel(labelIds) {
+        return new Set(
+            (this.tableData || [])
+                .filter(device => this.itemHasAnyDirectLabel(device, labelIds))
+                .map(device => device.id)
+        );
+    }
+
+    getLabelPermissionTargets(labelId) {
+        const labelIds = new Set([labelId]);
+        const deviceIdsWithLabel = this.getDeviceIdsWithAnyDirectLabel(labelIds);
+        const targets = [];
+
+        (this.tableData || []).forEach(device => {
+            const deviceMatches = this.itemHasDirectLabel(device, labelId);
+            (device.entities || []).forEach(entity => {
+                if (deviceMatches || this.itemHasLabel(entity, labelId)) {
+                    targets.push(entity);
+                }
+            });
+        });
+
+        (this.entitiesWithoutDevices || []).forEach(entity => {
+            if (this.itemHasLabel(entity, labelId)) {
+                targets.push(entity);
+            }
+        });
+
+        (this.helperTableData || []).forEach(helper => {
+            if (
+                this.itemHasLabel(helper, labelId)
+                || deviceIdsWithLabel.has(helper.device_id)
+            ) {
+                targets.push(helper);
+            }
+        });
+
+        return targets;
+    }
+
     formatHelperType(helperType) {
         return (helperType || '')
             .split('_')
@@ -1717,6 +1867,10 @@ class AccessControlManager extends LitElement {
     get filteredHelperRows() {
         const rows = this.filterRowsByAdvancedFilters(this.helperRows, 'helpers');
         return this.filterRowsByValue(rows, this.helperColumns, this.helperFilter);
+    }
+
+    get filteredLabelRows() {
+        return this.filterRowsByValue(this.labelRows, this.labelColumns, this.labelFilter);
     }
 
     get filteredDashboardViewRows() {
@@ -1827,6 +1981,74 @@ class AccessControlManager extends LitElement {
                 [field]: newState
             };
         });
+        this.requestUpdate();
+    }
+
+    handleVisibleLabelColumnToggle(field, newState) {
+        const labelIds = new Set(this.filteredLabelRows.map(row => row.id));
+        if (labelIds.size === 0) {
+            return;
+        }
+
+        this.updatePermissionsForLabels(labelIds, field, newState);
+    }
+
+    updatePermissionsForLabels(labelIds, field, newState) {
+        const deviceIdsWithLabels = this.getDeviceIdsWithAnyDirectLabel(labelIds);
+
+        this.tableData = (this.tableData || []).map(device => {
+            const deviceMatches = this.itemHasAnyDirectLabel(device, labelIds);
+            let changed = false;
+
+            const entities = (device.entities || []).map(entity => {
+                if (!deviceMatches && !this.itemHasAnyLabel(entity, labelIds)) {
+                    return entity;
+                }
+
+                changed = true;
+                return {
+                    ...entity,
+                    [field]: newState
+                };
+            });
+
+            if (!changed) {
+                return device;
+            }
+
+            return {
+                ...device,
+                entities,
+                read: this.getAggregateState(entities, 'read'),
+                write: this.getAggregateState(entities, 'write')
+            };
+        });
+
+        this.entitiesWithoutDevices = (this.entitiesWithoutDevices || []).map(entity => {
+            if (!this.itemHasAnyLabel(entity, labelIds)) {
+                return entity;
+            }
+
+            return {
+                ...entity,
+                [field]: newState
+            };
+        });
+
+        this.helperTableData = (this.helperTableData || []).map(helper => {
+            if (
+                !this.itemHasAnyLabel(helper, labelIds)
+                && !deviceIdsWithLabels.has(helper.device_id)
+            ) {
+                return helper;
+            }
+
+            return {
+                ...helper,
+                [field]: newState
+            };
+        });
+
         this.requestUpdate();
     }
 
@@ -1948,6 +2170,14 @@ class AccessControlManager extends LitElement {
             return { ...helper, [field]: newState };
         });
         this.requestUpdate();
+    }
+
+    updateLabelCheckbox(labelId, field, newState) {
+        if (!labelId) {
+            return;
+        }
+
+        this.updatePermissionsForLabels(new Set([labelId]), field, newState);
     }
 
     updateEntitiesWithoutDevicesCheckbox(entityId, field, newState) {
@@ -2168,6 +2398,11 @@ class AccessControlManager extends LitElement {
         this.requestUpdate();
     }
 
+    toggleLabelsCard() {
+        this.labelsCollapsed = !this.labelsCollapsed;
+        this.requestUpdate();
+    }
+
     toggleHelpersCard() {
         this.helpersCollapsed = !this.helpersCollapsed;
         this.requestUpdate();
@@ -2385,6 +2620,50 @@ class AccessControlManager extends LitElement {
                                     ['read', 'write'],
                                     (field, newState) => this.handleVisibleEntityColumnToggle(field, newState),
                                     this.entityRows
+                                )}
+                            </ha-data-table>
+                        </div>
+                    </div>
+                    ${this.renderPermissionsCardFooter()}
+                `}
+            </ha-card>
+        `;
+    }
+
+    renderLabelPermissionsCard() {
+        if (this.isAnUser) {
+            return null;
+        }
+
+        const filteredRows = this.filteredLabelRows;
+
+        return html`
+            <ha-card
+                class="labels-card collapsible-card"
+                header="${this.translate("label_permissions_for")} ${this.selected?.name || `(${this.translate("select_an_user_or_a_group")})`}"
+            >
+                <div class="card-toggle-icon" @click=${this.toggleLabelsCard}>
+                    <ha-icon icon="${this.labelsCollapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'}"></ha-icon>
+                </div>
+                ${this.labelsCollapsed ? null : html`
+                    <div class="data-table-section">
+                        <div class="data-table-container labels-table-container">
+                            <ha-data-table
+                                class="permissions-data-table"
+                                .hass=${this.hass}
+                                .id=${'id'}
+                                .columns=${this.labelColumns}
+                                .data=${filteredRows}
+                                .noDataText=${this.translate("labels_not_found")}
+                            >
+                                ${this.renderDataTableToolbar(
+                                    null,
+                                    'labelFilter',
+                                    this.labelFilter,
+                                    this.translate('search_labels'),
+                                    filteredRows,
+                                    ['read', 'write'],
+                                    (field, newState) => this.handleVisibleLabelColumnToggle(field, newState)
                                 )}
                             </ha-data-table>
                         </div>
@@ -2665,6 +2944,7 @@ class AccessControlManager extends LitElement {
                     ${this.renderDashboardPermissionsCard()}
                     ${this.renderDevicesPermissionsCard()}
                     ${this.renderEntitiesPermissionsCard()}
+                    ${this.renderLabelPermissionsCard()}
                 `}
                 ${this.renderHelpersPermissionsCard()}
             </div>
@@ -2861,6 +3141,7 @@ class AccessControlManager extends LitElement {
             .entites-cards,
             .entities-card,
             .dashboards-card,
+            .labels-card,
             .helpers-card,
             .entities-without-devices-card {
                 margin: 10px;
@@ -3110,6 +3391,10 @@ class AccessControlManager extends LitElement {
                 height: min(55vh, 460px);
             }
 
+            .labels-table-container {
+                height: min(45vh, 360px);
+            }
+
             .dashboard-views-table-container {
                 height: min(50vh, 420px);
             }
@@ -3186,6 +3471,7 @@ class AccessControlManager extends LitElement {
                 }
 
                 .helpers-table-container,
+                .labels-table-container,
                 .dashboard-views-table-container {
                     height: 360px;
                 }

@@ -161,6 +161,9 @@
             "helper_permissions_for": {
                 "name": "Permessi degli helper per"
             },
+            "label_permissions_for": {
+                "name": "Permessi delle etichette per"
+            },
             "entities_without_devices_permissions_for": {
                 "name": "Permessi delle entità senza dispositivi per"
             },
@@ -172,6 +175,9 @@
             },
             "helpers_not_found": {
                 "name": "Nessun helper trovato"
+            },
+            "labels_not_found": {
+                "name": "Nessuna etichetta trovata"
             },
             "dashboard": {
                 "name": "Dashboard"
@@ -187,6 +193,9 @@
             },
             "search_helpers": {
                 "name": "Cerca helper"
+            },
+            "search_labels": {
+                "name": "Cerca etichette"
             },
             "search_dashboard_views": {
                 "name": "Cerca viste dashboard"

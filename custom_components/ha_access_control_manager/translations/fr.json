@@ -161,6 +161,9 @@
             "helper_permissions_for": {
                 "name": "Autorisations des helpers pour"
             },
+            "label_permissions_for": {
+                "name": "Autorisations des étiquettes pour"
+            },
             "entities_without_devices_permissions_for": {
                 "name": "Autorisations des entités sans appareils pour"
             },
@@ -172,6 +175,9 @@
             },
             "helpers_not_found": {
                 "name": "Aucun helper trouvé"
+            },
+            "labels_not_found": {
+                "name": "Aucune étiquette trouvée"
             },
             "dashboard": {
                 "name": "Tableau de bord"
@@ -187,6 +193,9 @@
             },
             "search_helpers": {
                 "name": "Rechercher des helpers"
+            },
+            "search_labels": {
+                "name": "Rechercher des étiquettes"
             },
             "search_dashboard_views": {
                 "name": "Rechercher des vues de tableaux de bord"

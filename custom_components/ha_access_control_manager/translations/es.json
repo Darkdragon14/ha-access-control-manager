@@ -161,6 +161,9 @@
             "helper_permissions_for": {
                 "name": "Permisos de helpers para"
             },
+            "label_permissions_for": {
+                "name": "Permisos de etiquetas para"
+            },
             "entities_without_devices_permissions_for": {
                 "name": "Permisos de entidades sin dispositivos para"
             },
@@ -172,6 +175,9 @@
             },
             "helpers_not_found": {
                 "name": "No se encontraron helpers"
+            },
+            "labels_not_found": {
+                "name": "No se encontraron etiquetas"
             },
             "dashboard": {
                 "name": "Panel"
@@ -187,6 +193,9 @@
             },
             "search_helpers": {
                 "name": "Buscar helpers"
+            },
+            "search_labels": {
+                "name": "Buscar etiquetas"
             },
             "search_dashboard_views": {
                 "name": "Buscar vistas de paneles"

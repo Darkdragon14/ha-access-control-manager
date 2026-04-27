@@ -12,6 +12,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .get_devices import list_devices
 from .get_helpers import list_helpers
+from .get_labels import list_labels
 from .get_users import list_users
 from .get_auths import list_auths
 from .set_auths import create_group, delete_group, migrate_legacy_auth_data, rename_group, set_auths
@@ -42,6 +43,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket_api.async_register_command(hass, list_users)
     websocket_api.async_register_command(hass, list_devices)
     websocket_api.async_register_command(hass, list_helpers)
+    websocket_api.async_register_command(hass, list_labels)
     websocket_api.async_register_command(hass, list_auths)
     websocket_api.async_register_command(hass, create_group)
     websocket_api.async_register_command(hass, rename_group)

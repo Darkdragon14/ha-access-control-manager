@@ -161,6 +161,9 @@
             "helper_permissions_for": {
                 "name": "Helfer-Berechtigungen für"
             },
+            "label_permissions_for": {
+                "name": "Label-Berechtigungen für"
+            },
             "entities_without_devices_permissions_for": {
                 "name": "Entitätsberechtigungen ohne Geräte für"
             },
@@ -172,6 +175,9 @@
             },
             "helpers_not_found": {
                 "name": "Keine Helfer gefunden"
+            },
+            "labels_not_found": {
+                "name": "Keine Labels gefunden"
             },
             "dashboard": {
                 "name": "Dashboard"
@@ -187,6 +193,9 @@
             },
             "search_helpers": {
                 "name": "Helfer suchen"
+            },
+            "search_labels": {
+                "name": "Labels suchen"
             },
             "search_dashboard_views": {
                 "name": "Dashboard-Ansichten suchen"
