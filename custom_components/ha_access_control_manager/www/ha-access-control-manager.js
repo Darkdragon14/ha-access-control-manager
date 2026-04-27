@@ -38,6 +38,11 @@ class AccessControlManager extends LitElement {
             entityFilter: { type: String },
             helperFilter: { type: String },
             dashboardFilter: { type: String },
+            deviceAdvancedFilters: { type: Object },
+            entityAdvancedFilters: { type: Object },
+            helperAdvancedFilters: { type: Object },
+            advancedFilterPanels: { type: Object },
+            advancedFilterSections: { type: Object },
             _isSaving: { type: Boolean },
             restartDialogOpen: { type: Boolean },
             dashboardsCollapsed: { type: Boolean },
@@ -76,6 +81,11 @@ class AccessControlManager extends LitElement {
         this.entityFilter = '';
         this.helperFilter = '';
         this.dashboardFilter = '';
+        this.deviceAdvancedFilters = {};
+        this.entityAdvancedFilters = {};
+        this.helperAdvancedFilters = {};
+        this.advancedFilterPanels = {};
+        this.advancedFilterSections = {};
         this._dashboardsTemplate = [];
         this._pendingDashboardSelection = null;
         this._isSaving = false;
@@ -95,6 +105,11 @@ class AccessControlManager extends LitElement {
         this.entityFilter = '';
         this.helperFilter = '';
         this.dashboardFilter = '';
+        this.deviceAdvancedFilters = {};
+        this.entityAdvancedFilters = {};
+        this.helperAdvancedFilters = {};
+        this.advancedFilterPanels = {};
+        this.advancedFilterSections = {};
     }
 
     normalizeTableFilterValue(value) {
@@ -151,6 +166,372 @@ class AccessControlManager extends LitElement {
         this[filterKey] = event.target.value || '';
     }
 
+    getAdvancedFilterProperty(tableType) {
+        return {
+            devices: 'deviceAdvancedFilters',
+            entities: 'entityAdvancedFilters',
+            helpers: 'helperAdvancedFilters'
+        }[tableType];
+    }
+
+    getAdvancedFilters(tableType) {
+        const property = this.getAdvancedFilterProperty(tableType);
+        return property ? this[property] || {} : {};
+    }
+
+    getAdvancedFilterValues(tableType, filterKey) {
+        const filters = this.getAdvancedFilters(tableType);
+        return Array.isArray(filters[filterKey]) ? filters[filterKey] : [];
+    }
+
+    getAdvancedFilterCount(tableType) {
+        return Object.values(this.getAdvancedFilters(tableType))
+            .reduce((count, values) => count + (Array.isArray(values) ? values.length : 0), 0);
+    }
+
+    toggleAdvancedFilterPanel(tableType) {
+        this.advancedFilterPanels = {
+            ...this.advancedFilterPanels,
+            [tableType]: !this.advancedFilterPanels?.[tableType]
+        };
+    }
+
+    isAdvancedFilterPanelOpen(tableType) {
+        return this.advancedFilterPanels?.[tableType] === true;
+    }
+
+    clearAdvancedFilters(tableType) {
+        const property = this.getAdvancedFilterProperty(tableType);
+        if (!property) {
+            return;
+        }
+
+        this[property] = {};
+    }
+
+    getAdvancedFilterSectionKey(tableType, filterKey) {
+        return `${tableType}:${filterKey}`;
+    }
+
+    isAdvancedFilterSectionExpanded(tableType, filterKey) {
+        const sectionKey = this.getAdvancedFilterSectionKey(tableType, filterKey);
+        const configuredValue = this.advancedFilterSections?.[sectionKey];
+        if (configuredValue !== undefined) {
+            return configuredValue;
+        }
+
+        return this.getAdvancedFilterValues(tableType, filterKey).length > 0;
+    }
+
+    toggleAdvancedFilterSection(tableType, filterKey) {
+        const sectionKey = this.getAdvancedFilterSectionKey(tableType, filterKey);
+        this.advancedFilterSections = {
+            ...this.advancedFilterSections,
+            [sectionKey]: !this.isAdvancedFilterSectionExpanded(tableType, filterKey)
+        };
+    }
+
+    handleAdvancedFilterChange(tableType, filterKey, value, event) {
+        this.setAdvancedFilterValue(tableType, filterKey, value, event.target.checked);
+    }
+
+    handleAdvancedFilterOptionClick(tableType, filterKey, value, checked, event) {
+        const clickedCheckbox = event.composedPath()
+            .some(element => element?.localName === 'ha-checkbox' || element instanceof HTMLInputElement);
+        if (clickedCheckbox) {
+            return;
+        }
+
+        this.setAdvancedFilterValue(tableType, filterKey, value, checked);
+    }
+
+    setAdvancedFilterValue(tableType, filterKey, value, checked) {
+        const property = this.getAdvancedFilterProperty(tableType);
+        if (!property) {
+            return;
+        }
+
+        const filters = { ...(this[property] || {}) };
+        const values = new Set(Array.isArray(filters[filterKey]) ? filters[filterKey] : []);
+
+        if (checked) {
+            values.add(value);
+        } else {
+            values.delete(value);
+        }
+
+        if (values.size === 0) {
+            delete filters[filterKey];
+        } else {
+            filters[filterKey] = [...values];
+        }
+
+        this[property] = filters;
+    }
+
+    filterRowsByAdvancedFilters(rows, tableType) {
+        const activeFilters = Object.entries(this.getAdvancedFilters(tableType))
+            .filter(([, values]) => Array.isArray(values) && values.length > 0);
+
+        if (activeFilters.length === 0) {
+            return rows;
+        }
+
+        return rows.filter(row => activeFilters.every(([filterKey, values]) => (
+            this.rowMatchesAdvancedFilter(row, tableType, filterKey, values)
+        )));
+    }
+
+    rowMatchesAdvancedFilter(row, tableType, filterKey, selectedValues) {
+        if (filterKey === 'permissions') {
+            return selectedValues.some(value => this.rowMatchesPermissionFilter(row, value));
+        }
+
+        if (filterKey === 'status') {
+            return selectedValues.some(value => this.rowMatchesStatusFilter(row, tableType, value));
+        }
+
+        const rowValues = this.getRowAdvancedFilterValues(row, filterKey);
+        return selectedValues.some(value => rowValues.includes(value));
+    }
+
+    rowMatchesPermissionFilter(row, filterValue) {
+        switch (filterValue) {
+            case 'read_selected':
+                return row.read === true || row.read === 'indeterminate';
+            case 'write_selected':
+                return row.write === true || row.write === 'indeterminate';
+            case 'read_only':
+                return row.read === true && row.write === false;
+            case 'full_access':
+                return row.read === true && row.write === true;
+            case 'no_access':
+                return row.read === false && row.write === false;
+            case 'partial_access':
+                return row.read === 'indeterminate' || row.write === 'indeterminate';
+            default:
+                return false;
+        }
+    }
+
+    rowMatchesStatusFilter(row, tableType, filterValue) {
+        switch (filterValue) {
+            case 'enabled':
+                return !row.disabled_by;
+            case 'disabled':
+                return Boolean(row.disabled_by);
+            case 'visible':
+                return tableType === 'devices' ? true : !row.hidden_by;
+            case 'hidden':
+                return tableType !== 'devices' && Boolean(row.hidden_by);
+            default:
+                return false;
+        }
+    }
+
+    getStringFilterValues(value) {
+        if (value === undefined || value === null) {
+            return [];
+        }
+
+        if (Array.isArray(value)) {
+            return value.flatMap(item => this.getStringFilterValues(item));
+        }
+
+        return String(value)
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean);
+    }
+
+    getIntegrationFilterValues(row) {
+        if (Array.isArray(row.integration_values) && row.integration_values.length > 0) {
+            return row.integration_values;
+        }
+
+        return row.integration ? [row.integration] : [];
+    }
+
+    getDeviceIntegrationFilterValues(device) {
+        if (Array.isArray(device.integrations) && device.integrations.length > 0) {
+            return device.integrations
+                .map(integration => integration.name)
+                .filter(Boolean);
+        }
+
+        return device.integration ? [device.integration] : [];
+    }
+
+    getRowAdvancedFilterValues(row, filterKey) {
+        switch (filterKey) {
+            case 'areas':
+                return row.area ? [row.area] : ['__none__'];
+            case 'integrations':
+                return this.getIntegrationFilterValues(row);
+            case 'devices':
+                return row.device_id ? [row.device_id] : ['__none__'];
+            case 'domains':
+                return row.domain ? [row.domain] : [];
+            case 'labels':
+                return (row.labels || []).map(label => label.id || label).filter(Boolean);
+            case 'categories':
+                return row.category_id ? [row.category_id] : ['__none__'];
+            case 'voice_assistants':
+                return (row.voice_assistants || []).map(assistant => assistant.id || assistant).filter(Boolean);
+            default:
+                return [];
+        }
+    }
+
+    collectFilterOptions(rows, extractor) {
+        const options = new Map();
+
+        rows.forEach(row => {
+            extractor(row).forEach(option => {
+                if (!option?.value || options.has(option.value)) {
+                    return;
+                }
+
+                options.set(option.value, option);
+            });
+        });
+
+        return [...options.values()]
+            .sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }));
+    }
+
+    getPermissionFilterOptions(tableType) {
+        const options = [
+            { value: 'read_selected', label: this.translate('selected_read') },
+            { value: 'write_selected', label: this.translate('selected_write') },
+            { value: 'read_only', label: this.translate('read_only') },
+            { value: 'full_access', label: this.translate('full_access') },
+            { value: 'no_access', label: this.translate('no_access') }
+        ];
+
+        if (tableType === 'devices') {
+            options.push({ value: 'partial_access', label: this.translate('partial_access') });
+        }
+
+        return options;
+    }
+
+    getStatusFilterOptions(tableType) {
+        const options = [
+            { value: 'enabled', label: this.translate('enabled') },
+            { value: 'disabled', label: this.translate('disabled') }
+        ];
+
+        if (tableType !== 'devices') {
+            options.push(
+                { value: 'visible', label: this.translate('visible') },
+                { value: 'hidden', label: this.translate('hidden') }
+            );
+        }
+
+        return options;
+    }
+
+    getAreaFilterOptions(rows) {
+        return this.collectFilterOptions(rows, row => [{
+            value: row.area || '__none__',
+            label: row.area || this.translate('no_area')
+        }]);
+    }
+
+    getIntegrationFilterOptions(rows) {
+        return this.collectFilterOptions(rows, row => (
+            this.getIntegrationFilterValues(row)
+                .map(value => ({ value, label: value }))
+        ));
+    }
+
+    getDeviceFilterOptions(rows) {
+        return this.collectFilterOptions(rows, row => [{
+            value: row.device_id || '__none__',
+            label: row.device_name || this.translate('no_device')
+        }]);
+    }
+
+    getDomainFilterOptions(rows) {
+        return this.collectFilterOptions(rows, row => (
+            row.domain ? [{ value: row.domain, label: row.domain }] : []
+        ));
+    }
+
+    getLabelFilterOptions(rows) {
+        return this.collectFilterOptions(rows, row => (
+            (row.labels || []).map(label => ({
+                value: label.id || label,
+                label: label.name || label.id || label
+            }))
+        ));
+    }
+
+    getCategoryFilterOptions(rows) {
+        return this.collectFilterOptions(rows, row => [{
+            value: row.category_id || '__none__',
+            label: row.category_name || this.translate('no_category')
+        }]);
+    }
+
+    getVoiceAssistantFilterOptions(rows) {
+        return this.collectFilterOptions(rows, row => (
+            (row.voice_assistants || []).map(assistant => ({
+                value: assistant.id || assistant,
+                label: assistant.name || assistant.id || assistant
+            }))
+        ));
+    }
+
+    getAdvancedFilterConfig(tableType, rows) {
+        const commonSections = [
+            {
+                key: 'permissions',
+                title: this.translate('permissions'),
+                options: this.getPermissionFilterOptions(tableType)
+            },
+            {
+                key: 'status',
+                title: this.translate('status'),
+                options: this.getStatusFilterOptions(tableType)
+            }
+        ];
+
+        if (tableType === 'devices') {
+            return [
+                { key: 'areas', title: this.translate('areas'), options: this.getAreaFilterOptions(rows) },
+                { key: 'integrations', title: this.translate('integrations'), options: this.getIntegrationFilterOptions(rows) },
+                ...commonSections,
+                { key: 'labels', title: this.translate('labels'), options: this.getLabelFilterOptions(rows) }
+            ];
+        }
+
+        if (tableType === 'entities') {
+            return [
+                { key: 'areas', title: this.translate('areas'), options: this.getAreaFilterOptions(rows) },
+                { key: 'devices', title: this.translate('devices'), options: this.getDeviceFilterOptions(rows) },
+                { key: 'domains', title: this.translate('domains'), options: this.getDomainFilterOptions(rows) },
+                { key: 'integrations', title: this.translate('integrations'), options: this.getIntegrationFilterOptions(rows) },
+                ...commonSections,
+                { key: 'labels', title: this.translate('labels'), options: this.getLabelFilterOptions(rows) }
+            ];
+        }
+
+        if (tableType === 'helpers') {
+            return [
+                { key: 'areas', title: this.translate('areas'), options: this.getAreaFilterOptions(rows) },
+                { key: 'devices', title: this.translate('devices'), options: this.getDeviceFilterOptions(rows) },
+                { key: 'labels', title: this.translate('labels'), options: this.getLabelFilterOptions(rows) },
+                { key: 'categories', title: this.translate('categories'), options: this.getCategoryFilterOptions(rows) },
+                { key: 'voice_assistants', title: this.translate('voice_assistants'), options: this.getVoiceAssistantFilterOptions(rows) },
+                ...commonSections
+            ];
+        }
+
+        return [];
+    }
+
     update(changedProperties) {
         if (changedProperties.has('hass') && this.hass && this.needToFetch) {
             this.fetchUsers();
@@ -184,7 +565,10 @@ class AccessControlManager extends LitElement {
                     name: device.name,
                     id: device.id,
                     integration: this.getDeviceIntegrationLabel(device),
+                    integrations: device.integrations || [],
                     area: this.getDeviceAreaLabel(device),
+                    disabled_by: device.disabled_by || null,
+                    labels: device.labels || [],
                     read: false,
                     write: false
                 }));
@@ -1053,7 +1437,10 @@ class AccessControlManager extends LitElement {
             id: device.id,
             name: device.name,
             integration: device.integration || '',
+            integration_values: this.getDeviceIntegrationFilterValues(device),
             area: device.area || '',
+            disabled_by: device.disabled_by || null,
+            labels: device.labels || [],
             read: device.read,
             write: device.write,
         }));
@@ -1130,8 +1517,15 @@ class AccessControlManager extends LitElement {
                 original_name: entity.original_name || '',
                 device_id: device.id,
                 device_name: device.name,
+                domain: entity.domain || (entity.entity_id || '').split('.')[0] || '',
                 integration: device.integration || entity.platform || '',
+                integration_values: this.getDeviceIntegrationFilterValues(device).length > 0
+                    ? this.getDeviceIntegrationFilterValues(device)
+                    : [entity.platform].filter(Boolean),
                 area: entity.area || device.area || '',
+                disabled_by: entity.disabled_by || null,
+                hidden_by: entity.hidden_by || null,
+                labels: entity.labels || [],
                 read: entity.read,
                 write: entity.write,
             }))
@@ -1145,8 +1539,13 @@ class AccessControlManager extends LitElement {
             original_name: entity.original_name || '',
             device_id: '',
             device_name: withoutDeviceLabel,
+            domain: entity.domain || (entity.entity_id || '').split('.')[0] || '',
             integration: entity.platform || '',
+            integration_values: [entity.platform].filter(Boolean),
             area: entity.area || '',
+            disabled_by: entity.disabled_by || null,
+            hidden_by: entity.hidden_by || null,
+            labels: entity.labels || [],
             read: entity.read,
             write: entity.write,
         }));
@@ -1218,6 +1617,14 @@ class AccessControlManager extends LitElement {
             name: helper.name === 'Unknown' ? helper.entity_id : helper.name,
             helper_type_label: this.formatHelperType(helper.helper_type),
             area: helper.area || '',
+            device_id: helper.device_id || '',
+            device_name: helper.device_name || '',
+            disabled_by: helper.disabled_by || null,
+            hidden_by: helper.hidden_by || null,
+            labels: helper.labels || [],
+            category_id: helper.category_id || '',
+            category_name: helper.category_name || '',
+            voice_assistants: helper.voice_assistants || [],
             read: helper.read,
             write: helper.write,
         }));
@@ -1298,15 +1705,18 @@ class AccessControlManager extends LitElement {
     }
 
     get filteredDeviceRows() {
-        return this.filterRowsByValue(this.deviceRows, this.deviceColumns, this.deviceFilter);
+        const rows = this.filterRowsByAdvancedFilters(this.deviceRows, 'devices');
+        return this.filterRowsByValue(rows, this.deviceColumns, this.deviceFilter);
     }
 
     get filteredEntityRows() {
-        return this.filterRowsByValue(this.entityRows, this.entityColumns, this.entityFilter);
+        const rows = this.filterRowsByAdvancedFilters(this.entityRows, 'entities');
+        return this.filterRowsByValue(rows, this.entityColumns, this.entityFilter);
     }
 
     get filteredHelperRows() {
-        return this.filterRowsByValue(this.helperRows, this.helperColumns, this.helperFilter);
+        const rows = this.filterRowsByAdvancedFilters(this.helperRows, 'helpers');
+        return this.filterRowsByValue(rows, this.helperColumns, this.helperFilter);
     }
 
     get filteredDashboardViewRows() {
@@ -1726,6 +2136,7 @@ class AccessControlManager extends LitElement {
                                 .noDataText=${this.translate("views_not_found")}
                             >
                                 ${this.renderDataTableToolbar(
+                                    null,
                                     'dashboardFilter',
                                     this.dashboardFilter,
                                     this.translate('search_dashboard_views'),
@@ -1780,7 +2191,61 @@ class AccessControlManager extends LitElement {
         `;
     }
 
-    renderDataTableToolbar(filterKey, filterValue, searchLabel, rows, fields, onToggle) {
+    renderAdvancedFilterSection(tableType, section) {
+        const selectedValues = this.getAdvancedFilterValues(tableType, section.key);
+        const expanded = this.isAdvancedFilterSectionExpanded(tableType, section.key);
+
+        return html`
+            <div class="advanced-filter-section">
+                <button
+                    type="button"
+                    class="advanced-filter-section-header"
+                    @click=${() => this.toggleAdvancedFilterSection(tableType, section.key)}
+                >
+                    <ha-icon icon="${expanded ? 'mdi:chevron-up' : 'mdi:chevron-down'}"></ha-icon>
+                    <span>${section.title}</span>
+                    ${selectedValues.length > 0 ? html`
+                        <span class="advanced-filter-section-count">${selectedValues.length}</span>
+                    ` : null}
+                </button>
+                ${expanded ? html`
+                    <div class="advanced-filter-options">
+                        ${section.options.length === 0 ? html`
+                            <div class="advanced-filter-empty">${this.translate('no_filter_options')}</div>
+                        ` : section.options.map(option => {
+                            const checked = selectedValues.includes(option.value);
+
+                            return html`
+                            <label class="advanced-filter-option">
+                                <ha-checkbox
+                                    .checked=${checked}
+                                    @change=${(event) => this.handleAdvancedFilterChange(tableType, section.key, option.value, event)}
+                                ></ha-checkbox>
+                                <span
+                                    @click=${(event) => this.handleAdvancedFilterOptionClick(tableType, section.key, option.value, !checked, event)}
+                                >${option.label}</span>
+                            </label>
+                            `;
+                        })}
+                    </div>
+                ` : null}
+            </div>
+        `;
+    }
+
+    renderAdvancedFilterPanel(tableType, rows) {
+        const sections = this.getAdvancedFilterConfig(tableType, rows);
+
+        return html`
+            <div class="advanced-filter-panel">
+                ${sections.map(section => this.renderAdvancedFilterSection(tableType, section))}
+            </div>
+        `;
+    }
+
+    renderDataTableToolbar(tableType, filterKey, filterValue, searchLabel, rows, fields, onToggle, allRows = rows) {
+        const advancedFilterCount = tableType ? this.getAdvancedFilterCount(tableType) : 0;
+
         return html`
             <div slot="header" class="data-table-toolbar">
                 <ha-textfield
@@ -1789,9 +2254,32 @@ class AccessControlManager extends LitElement {
                     .value=${filterValue}
                     @input=${(event) => this.handleTableFilterInput(filterKey, event)}
                 ></ha-textfield>
+                ${tableType ? html`
+                    <div class="advanced-filter-actions">
+                        <ha-button
+                            class="advanced-filter-button"
+                            @click=${() => this.toggleAdvancedFilterPanel(tableType)}
+                        >
+                            <ha-icon icon="mdi:filter-variant"></ha-icon>
+                            ${this.translate('filters')}
+                            ${advancedFilterCount > 0 ? html`
+                                <span class="advanced-filter-count">${advancedFilterCount}</span>
+                            ` : null}
+                        </ha-button>
+                        ${advancedFilterCount > 0 ? html`
+                            <ha-button
+                                class="advanced-filter-clear-button"
+                                @click=${() => this.clearAdvancedFilters(tableType)}
+                            >
+                                ${this.translate('clear_filters')}
+                            </ha-button>
+                        ` : null}
+                    </div>
+                ` : null}
                 <div class="bulk-column-actions" role="group" aria-label="${this.translate('visible_rows')}">
                     ${fields.map(field => this.renderBulkColumnToggle(field, rows, onToggle))}
                 </div>
+                ${tableType && this.isAdvancedFilterPanelOpen(tableType) ? this.renderAdvancedFilterPanel(tableType, allRows) : null}
             </div>
         `;
     }
@@ -1844,12 +2332,14 @@ class AccessControlManager extends LitElement {
                                 .noDataText=${this.translate("devices_not_found")}
                             >
                                 ${this.renderDataTableToolbar(
+                                    'devices',
                                     'deviceFilter',
                                     this.deviceFilter,
                                     this.translate('search_devices'),
                                     filteredRows,
                                     ['read', 'write'],
-                                    (field, newState) => this.handleVisibleDeviceColumnToggle(field, newState)
+                                    (field, newState) => this.handleVisibleDeviceColumnToggle(field, newState),
+                                    this.deviceRows
                                 )}
                             </ha-data-table>
                         </div>
@@ -1887,12 +2377,14 @@ class AccessControlManager extends LitElement {
                                 .noDataText=${this.translate("entities_not_found")}
                             >
                                 ${this.renderDataTableToolbar(
+                                    'entities',
                                     'entityFilter',
                                     this.entityFilter,
                                     this.translate('search_entities'),
                                     filteredRows,
                                     ['read', 'write'],
-                                    (field, newState) => this.handleVisibleEntityColumnToggle(field, newState)
+                                    (field, newState) => this.handleVisibleEntityColumnToggle(field, newState),
+                                    this.entityRows
                                 )}
                             </ha-data-table>
                         </div>
@@ -1930,12 +2422,14 @@ class AccessControlManager extends LitElement {
                                 .noDataText=${this.translate("helpers_not_found")}
                             >
                                 ${this.renderDataTableToolbar(
+                                    'helpers',
                                     'helperFilter',
                                     this.helperFilter,
                                     this.translate('search_helpers'),
                                     filteredRows,
                                     ['read', 'write'],
-                                    (field, newState) => this.handleVisibleHelperColumnToggle(field, newState)
+                                    (field, newState) => this.handleVisibleHelperColumnToggle(field, newState),
+                                    this.helperRows
                                 )}
                             </ha-data-table>
                         </div>
@@ -2489,6 +2983,109 @@ class AccessControlManager extends LitElement {
                 flex-wrap: wrap;
             }
 
+            .advanced-filter-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            .advanced-filter-button ha-icon {
+                --mdc-icon-size: 18px;
+                margin-right: 6px;
+                margin-inline-end: 6px;
+                margin-inline-start: initial;
+                vertical-align: middle;
+            }
+
+            .advanced-filter-count,
+            .advanced-filter-section-count {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 18px;
+                height: 18px;
+                padding: 0 5px;
+                margin-left: 6px;
+                margin-inline-start: 6px;
+                margin-inline-end: initial;
+                border-radius: 999px;
+                color: var(--text-primary-color);
+                background: var(--primary-color);
+                font-size: 12px;
+                line-height: 18px;
+                box-sizing: border-box;
+            }
+
+            .advanced-filter-section-count {
+                margin-left: auto;
+                margin-inline-start: auto;
+                margin-inline-end: initial;
+            }
+
+            .advanced-filter-panel {
+                flex: 1 0 100%;
+                width: 100%;
+                border: 1px solid var(--divider-color);
+                border-radius: var(--ha-card-border-radius, 12px);
+                background: var(--card-background-color);
+                overflow: hidden;
+            }
+
+            .advanced-filter-section + .advanced-filter-section {
+                border-top: 1px solid var(--divider-color);
+            }
+
+            .advanced-filter-section-header {
+                width: 100%;
+                min-height: 48px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 0 14px;
+                border: 0;
+                color: var(--primary-text-color);
+                background: transparent;
+                font: inherit;
+                font-weight: 500;
+                text-align: left;
+                cursor: pointer;
+            }
+
+            .advanced-filter-section-header ha-icon {
+                --mdc-icon-size: 20px;
+                color: var(--secondary-text-color);
+            }
+
+            .advanced-filter-options {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 4px 12px;
+                padding: 0 14px 12px 44px;
+                padding-inline-start: 44px;
+                padding-inline-end: 14px;
+            }
+
+            .advanced-filter-option {
+                display: inline-flex;
+                align-items: center;
+                min-width: 0;
+                color: var(--primary-text-color);
+                cursor: pointer;
+            }
+
+            .advanced-filter-option span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .advanced-filter-empty {
+                color: var(--secondary-text-color);
+                font-size: 0.9em;
+                padding: 8px 0;
+            }
+
             .bulk-column-toggle {
                 display: inline-flex;
                 align-items: center;
@@ -2566,6 +3163,18 @@ class AccessControlManager extends LitElement {
 
                 .bulk-column-actions {
                     justify-content: flex-start;
+                }
+
+                .advanced-filter-actions {
+                    width: 100%;
+                    justify-content: flex-start;
+                }
+
+                .advanced-filter-options {
+                    grid-template-columns: 1fr;
+                    padding-left: 40px;
+                    padding-inline-start: 40px;
+                    padding-inline-end: 12px;
                 }
 
                 .devices-table-container {

@@ -196,6 +196,78 @@
             },
             "visible_rows": {
                 "name": "Látható sorok"
+            },
+            "filters": {
+                "name": "Szűrők"
+            },
+            "clear_filters": {
+                "name": "Szűrők törlése"
+            },
+            "no_filter_options": {
+                "name": "Nincs elérhető opció"
+            },
+            "permissions": {
+                "name": "Jogosultságok"
+            },
+            "status": {
+                "name": "Állapot"
+            },
+            "areas": {
+                "name": "Területek"
+            },
+            "integrations": {
+                "name": "Integrációk"
+            },
+            "devices": {
+                "name": "Eszközök"
+            },
+            "domains": {
+                "name": "Tartományok"
+            },
+            "labels": {
+                "name": "Címkék"
+            },
+            "categories": {
+                "name": "Kategóriák"
+            },
+            "voice_assistants": {
+                "name": "Hangasszisztensek"
+            },
+            "enabled": {
+                "name": "Engedélyezve"
+            },
+            "disabled": {
+                "name": "Letiltva"
+            },
+            "hidden": {
+                "name": "Rejtett"
+            },
+            "no_area": {
+                "name": "Nincs terület"
+            },
+            "no_device": {
+                "name": "Nincs eszköz"
+            },
+            "no_category": {
+                "name": "Nincs kategória"
+            },
+            "selected_read": {
+                "name": "Olvasás kijelölve"
+            },
+            "selected_write": {
+                "name": "Írás kijelölve"
+            },
+            "read_only": {
+                "name": "Csak olvasás"
+            },
+            "full_access": {
+                "name": "Teljes hozzáférés"
+            },
+            "no_access": {
+                "name": "Nincs hozzáférés"
+            },
+            "partial_access": {
+                "name": "Részleges hozzáférés"
             }
         }
     }
