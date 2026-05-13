@@ -11,9 +11,11 @@
 
 ## HACS installation
 
+[![Open your Home Assistant instance and open a repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Darkdragon14&repository=ha-access-control-manager)
+
 To install Access Control Manager using [HACS](https://hacs.xyz/):
 
-1. Add this repository as a custom repository in HACS:
+1. Click the button above, or add this repository manually as a custom repository in HACS:
    - Go to **HACS** → **Integrations** → **Add Custom Repository**.
    - Enter the URL of this repository and select **Integration** as the category.
 2. Search for "Access Control Manager" in HACS and install it.
