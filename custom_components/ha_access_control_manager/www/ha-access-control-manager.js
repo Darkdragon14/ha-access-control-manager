@@ -1283,12 +1283,12 @@ class AccessControlManager extends LitElement {
                                 ${this.translate("restart")}
                             </ha-button>
 
-                            <ha-textfield
+                            <ha-input
                                 class="search-input"
-                                label="${this.translate("search_by_name")}"
+                                .label=${this.translate("search_by_name")}
                                 .value=${this.searchTerm}
                                 @input=${this.handleSearchInput}
-                            ></ha-textfield>
+                            ></ha-input>
                         </div>
                     </div>
                 </ha-card>
@@ -1356,14 +1356,14 @@ class AccessControlManager extends LitElement {
                                     header-title="${this.translate("create_new_group")}" 
                                 >
                                     <div>
-                                        <ha-textfield 
+                                        <ha-input
                                             class="group-input"
-                                            label="${this.translate("group_name")}" 
+                                            .label=${this.translate("group_name")}
                                             required
-                                            validationMessage="${this.translate("enter_group_name")}"
-                                            .value="${this.newGroupName}" 
-                                            @input="${this.handleNewGroupInput}"
-                                        ></ha-textfield>
+                                            .validationMessage=${this.translate("enter_group_name")}
+                                            .value=${this.newGroupName}
+                                            @input=${this.handleNewGroupInput}
+                                        ></ha-input>
                                     </div>
                                     <ha-dialog-footer slot="footer">
                                         <ha-button
@@ -1390,14 +1390,14 @@ class AccessControlManager extends LitElement {
                                     @closed=${this.closeDuplicateGroupDialog}
                                 >
                                     <div>
-                                        <ha-textfield
+                                        <ha-input
                                             class="duplicate-group-input"
-                                            label="${this.translate("group_name")}" 
+                                            .label=${this.translate("group_name")}
                                             required
-                                            validationMessage="${this.translate("enter_group_name")}" 
-                                            .value="${this.duplicateGroupName}"
-                                            @input="${this.handleDuplicateGroupInput}"
-                                        ></ha-textfield>
+                                            .validationMessage=${this.translate("enter_group_name")}
+                                            .value=${this.duplicateGroupName}
+                                            @input=${this.handleDuplicateGroupInput}
+                                        ></ha-input>
                                     </div>
                                     <ha-dialog-footer slot="footer">
                                         <ha-button
