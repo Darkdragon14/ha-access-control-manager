@@ -2483,12 +2483,12 @@ class AccessControlManager extends LitElement {
 
         return html`
             <div slot="header" class="data-table-toolbar">
-                <ha-textfield
+                <ha-input
                     class="data-table-search"
-                    label="${searchLabel}"
+                    .label=${searchLabel}
                     .value=${filterValue}
                     @input=${(event) => this.handleTableFilterInput(filterKey, event)}
-                ></ha-textfield>
+                ></ha-input>
                 ${tableType ? html`
                     <div class="advanced-filter-actions">
                         <ha-button
@@ -2871,14 +2871,14 @@ class AccessControlManager extends LitElement {
                                     @closed=${this.closeCreateGroupDialog}
                                 >
                                     <div>
-                                        <ha-textfield 
+                                        <ha-input
                                             class="group-input"
-                                            label="${this.translate("group_name")}" 
+                                            .label=${this.translate("group_name")}
                                             required
-                                            validationMessage="${this.translate("enter_group_name")}"
-                                            .value="${this.newGroupName}" 
-                                            @input="${this.handleNewGroupInput}"
-                                        ></ha-textfield>
+                                            .validationMessage=${this.translate("enter_group_name")}
+                                            .value=${this.newGroupName}
+                                            @input=${this.handleNewGroupInput}
+                                        ></ha-input>
                                     </div>
                                     <ha-dialog-footer slot="footer">
                                         <ha-button
@@ -2906,14 +2906,14 @@ class AccessControlManager extends LitElement {
                                     @closed=${this.closeDuplicateGroupDialog}
                                 >
                                     <div>
-                                        <ha-textfield
+                                        <ha-input
                                             class="duplicate-group-input"
-                                            label="${this.translate("group_name")}" 
+                                            .label=${this.translate("group_name")}
                                             required
-                                            validationMessage="${this.translate("enter_group_name")}" 
-                                            .value="${this.duplicateGroupName}"
+                                            .validationMessage=${this.translate("enter_group_name")}
+                                            .value=${this.duplicateGroupName}
                                             @input=${this.handleDuplicateGroupInput}
-                                        ></ha-textfield>
+                                        ></ha-input>
                                     </div>
                                     <ha-dialog-footer slot="footer">
                                         <ha-button
@@ -2977,14 +2977,14 @@ class AccessControlManager extends LitElement {
             @closed=${this.closeRenameGroupDialog}
         >
             <div>
-                <ha-textfield
+                <ha-input
                     class="rename-group-input"
-                    label="${this.translate("group_name")}"
+                    .label=${this.translate("group_name")}
                     required
-                    validationMessage="${this.translate("enter_group_name")}"
-                    .value="${this.renameGroupName}"
+                    .validationMessage=${this.translate("enter_group_name")}
+                    .value=${this.renameGroupName}
                     @input=${this.handleRenameGroupInput}
-                ></ha-textfield>
+                ></ha-input>
             </div>
             <ha-dialog-footer slot="footer">
                 <ha-button
