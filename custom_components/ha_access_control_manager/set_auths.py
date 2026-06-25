@@ -924,6 +924,11 @@ async def _sync_group_dashboards_to_users(hass: HomeAssistant) -> None:
             await save_json_file(file_path, storage)
 
 
+async def async_sync_group_dashboards_to_users(hass: HomeAssistant) -> None:
+    """Synchronize Lovelace view visibility from ACM group dashboard permissions."""
+    await _sync_group_dashboards_to_users(hass)
+
+
 async def _attach_group_dashboards(hass: HomeAssistant, auth_data: dict[str, Any] | None) -> None:
     if not isinstance(auth_data, dict):
         return
