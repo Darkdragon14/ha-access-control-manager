@@ -47,6 +47,29 @@ This does not create a persistent Home Assistant label policy. If you add a new 
 |**Tab Name**|Name of the Access Control Manager tab.|No|`Access Control Manager`|
 |**Path for Admin UI**|Custom URL path for accessing the admin interface|No|`/ha-access-control-manager`|
 
+## Public API: dashboard visibility sync
+
+Access Control Manager exposes an async helper that other Home Assistant code can call to synchronize Lovelace dashboard visibility from the current ACM group dashboard permissions.
+
+The helper is registered in `hass.data` when the integration is loaded:
+
+```python
+from homeassistant.core import HomeAssistant
+
+ACM_DOMAIN = "ha_access_control_manager"
+SYNC_DASHBOARDS_API = "async_sync_group_dashboards_to_users"
+
+
+async def async_update_dashboard_visibility(hass: HomeAssistant) -> None:
+    sync_dashboards = hass.data.get(ACM_DOMAIN, {}).get(SYNC_DASHBOARDS_API)
+    if sync_dashboards is None:
+        raise RuntimeError("Access Control Manager is not loaded")
+
+    await sync_dashboards(hass)
+```
+
+This coroutine must be awaited from Home Assistant's event loop. It does not take a user or group argument; it syncs dashboard visibility for users based on the saved ACM group dashboard permissions.
+
 # Future improvements
 
 * Adding a message to confirm or display an error when we save :rocket:
