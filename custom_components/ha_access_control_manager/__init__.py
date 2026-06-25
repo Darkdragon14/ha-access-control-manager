@@ -15,7 +15,7 @@ from .get_helpers import list_helpers
 from .get_labels import list_labels
 from .get_users import list_users
 from .get_auths import list_auths
-from .set_auths import create_group, delete_group, migrate_legacy_auth_data, rename_group, set_auths
+from .set_auths import async_sync_group_dashboards_to_users, create_group, delete_group, migrate_legacy_auth_data, rename_group, set_auths
 from .get_dashboards import list_dashboards
 
 from .const import (
@@ -37,8 +37,17 @@ def get_version():
 
 VERSION = get_version()
 
+
+def _register_public_api(hass: HomeAssistant) -> None:
+    hass.data.setdefault(DOMAIN, {})[
+        "async_sync_group_dashboards_to_users"
+    ] = async_sync_group_dashboards_to_users
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the ha_access_control_manager component."""
+
+    _register_public_api(hass)
 
     websocket_api.async_register_command(hass, list_users)
     websocket_api.async_register_command(hass, list_devices)
@@ -71,7 +80,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up  ha_access_control_manager from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
+    _register_public_api(hass)
 
     tab_icon = config_entry.options.get("tab_icon", config_entry.data.get("tab_icon", "mdi:shield-account"))
     tab_name = config_entry.options.get("tab_name", config_entry.data.get("tab_name", "Access Control Manager"))
