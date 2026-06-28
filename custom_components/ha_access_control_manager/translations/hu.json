@@ -27,7 +27,7 @@
                 "name": "Felhasználó"
             },
             "group": {
-                "name": "Csoportok"
+                "name": "Csoport"
             },
             "save": {
                 "name": "Mentés"
@@ -66,25 +66,25 @@
                 "name": "Csoport duplikálása"
             },
             "rename_group": {
-                "name": "Csoport atnevezese"
+                "name": "Csoport átnevezése"
             },
             "rename_group_tooltip": {
-                "name": "Csoport atnevezese"
+                "name": "Csoport átnevezése"
             },
             "delete_group": {
-                "name": "Csoport torlese"
+                "name": "Csoport törlése"
             },
             "delete_group_tooltip": {
-                "name": "Csoport torlese"
+                "name": "Csoport törlése"
             },
             "delete_group_disabled_tooltip": {
-                "name": "Ez a csoport nem torolheto: legalabb egy felhasznalo kapcsolodik hozza"
+                "name": "Ez a csoport nem törölhető: legalább egy felhasználó kapcsolódik hozzá."
             },
             "confirm_delete_group_title": {
-                "name": "Csoport torlesenek megerositese"
+                "name": "Csoport törlésének megerősítése"
             },
             "confirm_delete_group_description": {
-                "name": "Biztosan torolni szeretned ezt a csoportot?"
+                "name": "Biztos vagy benne, hogy törölni akarod ezt a csoportot?"
             },
             "copy_suffix": {
                 "name": "másolat"
@@ -135,10 +135,10 @@
                 "name": "Figyelem, van egy egyedi csoportod, aminek nincsenek szabályai. Kérlek, adj hozzá legalább egy szabályt, mielőtt újraindítod a Home Assistant-ot."
             },
             "dashboard_permissions_for": {
-                "name": "Dashboard engedélyei ehhez"
+                "name": "Kezelőfelület engedélyei ehhez"
             },
             "dashboards_not_found": {
-                "name": "Nem található dashboard"
+                "name": "Nem található kezelőfelület"
             },
             "views_not_found": {
                 "name": "Nem található nézet"
@@ -147,7 +147,7 @@
                 "name": "Névtelen nézet"
             },
             "unknown_dashboard": {
-                "name": "Névtelen dashboard"
+                "name": "Névtelen kezelőfelület"
             },
             "visible": {
                 "name": "Látható"
@@ -159,7 +159,7 @@
                 "name": "Ehhez a csoporthoz nincs felhasználó kapcsolva"
             },
             "helper_permissions_for": {
-                "name": "Segédek engedélyei ehhez"
+                "name": "Helperek engedélyei ehhez"
             },
             "label_permissions_for": {
                 "name": "Címke engedélyei ehhez"
@@ -174,13 +174,13 @@
                 "name": "Nem található eszköz"
             },
             "helpers_not_found": {
-                "name": "Nem található segéd"
+                "name": "Nem található helper"
             },
             "labels_not_found": {
                 "name": "Nem található címke"
             },
             "dashboard": {
-                "name": "Dashboard"
+                "name": "Kezelőfelület"
             },
             "view": {
                 "name": "Nézet"
@@ -192,16 +192,16 @@
                 "name": "Típus"
             },
             "search_helpers": {
-                "name": "Segédek keresése"
+                "name": "Helperek keresése"
             },
             "search_labels": {
                 "name": "Címkék keresése"
             },
             "search_dashboard_views": {
-                "name": "Dashboard nézetek keresése"
+                "name": "Kezelőfelület nézetek keresése"
             },
             "entire_dashboard": {
-                "name": "Teljes dashboard"
+                "name": "Teljes kezelőfelület"
             },
             "visible_rows": {
                 "name": "Látható sorok"
