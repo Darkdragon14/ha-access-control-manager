@@ -6,7 +6,7 @@ from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.components import websocket_api
+from homeassistant.components import frontend, websocket_api
 from homeassistant.components.panel_custom import async_register_panel
 from homeassistant.helpers import config_validation as cv
 
@@ -91,7 +91,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     panels = hass.data.get("frontend_panels", {})
     if path in panels:
-        hass.components.frontend.async_remove_panel(path)
+        frontend.async_remove_panel(hass, path)
 
     hass.async_create_task(
         async_register_panel(
@@ -117,7 +117,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
     panels = hass.data.get("frontend_panels", {})
     if path in panels:
-        hass.components.frontend.async_remove_panel(path)
+        frontend.async_remove_panel(hass, path)
     return True
 
 async def async_copy_file(source_path, dest_path):
