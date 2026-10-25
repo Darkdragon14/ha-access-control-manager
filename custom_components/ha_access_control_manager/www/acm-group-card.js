@@ -1,4 +1,8 @@
 // Visibility only. Entity/API permissions must still be enforced by Home Assistant.
+const i18nURL = new URL('./acm-group-card-i18n.js', import.meta.url);
+i18nURL.search = new URL(import.meta.url).search;
+const { translate } = await import(i18nURL.href);
+const browserLanguage = () => document.documentElement?.lang || globalThis.navigator?.language || 'en';
 const managers = new WeakMap();
 const REFRESH_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -75,7 +79,7 @@ export class GroupMembership {
         })).then((response) => {
             if (!Array.isArray(response?.groups) || response.groups.some(
                 (group) => !group || typeof group.id !== 'string' || !group.id,
-            )) throw new Error('Invalid ACM group response');
+            )) throw new Error(translate(browserLanguage(), 'invalid_membership'));
             finish(response.groups.map((group) => group.id));
         }).catch(() => finish(null));
     }
@@ -91,14 +95,14 @@ export function membershipFor(connection, userId) {
     return users.get(userId);
 }
 
-export function validateConfig(config) {
+export function validateConfig(config, language = browserLanguage()) {
     if (!config || !Array.isArray(config.groups) || !config.groups.length ||
         config.groups.some((id) => typeof id !== 'string' || !id.trim())) {
-        throw new Error('ACM: select at least one group.');
+        throw new Error(translate(language, 'invalid_groups'));
     }
     if (!config.card || typeof config.card !== 'object' || Array.isArray(config.card) ||
         typeof config.card.type !== 'string' || !config.card.type.trim()) {
-        throw new Error('ACM: configure a child card.');
+        throw new Error(translate(language, 'invalid_card'));
     }
 }
 
@@ -134,7 +138,7 @@ export class AcmGroupCard extends HTMLElement {
         this.config = null;
         this.clearChild();
         this.setVisible(false);
-        validateConfig(config);
+        validateConfig(config, this._hass?.language || browserLanguage());
         this.config = structuredClone(config);
         this.syncChild();
     }
@@ -143,6 +147,7 @@ export class AcmGroupCard extends HTMLElement {
         this._hass = hass;
         this.bindMembership();
         if (this.child) this.child.hass = hass;
+        if (this.childError) this.renderChildError();
     }
 
     get hass() { return this._hass; }
@@ -204,6 +209,7 @@ export class AcmGroupCard extends HTMLElement {
         this.token += 1;
         this.creating = false;
         this.child = null;
+        this.childError = null;
         this.content.replaceChildren();
     }
 
@@ -241,19 +247,27 @@ export class AcmGroupCard extends HTMLElement {
                 this.clearChild();
                 this.syncChild();
             }, { once: true });
+            this.childError = null;
             this.child = child;
             this.content.replaceChildren(child);
             this.setVisible(child.hidden !== true);
         } catch (error) {
             if (token !== this.token || !this.allowed()) return;
-            const message = document.createElement('ha-alert');
-            message.alertType = 'error';
-            message.textContent = `ACM: unable to load child card: ${error.message}`;
-            this.content.replaceChildren(message);
+            this.childError = error;
+            this.renderChildError();
             this.setVisible(true);
         } finally {
             if (token === this.token) this.creating = false;
         }
+    }
+
+    renderChildError() {
+        const message = document.createElement('ha-alert');
+        message.alertType = 'error';
+        message.textContent = translate(this._hass?.language || browserLanguage(), 'child_error', {
+            error: this.childError?.message || String(this.childError),
+        });
+        this.content.replaceChildren(message);
     }
 
     getCardSize() { return this.hidden ? 0 : (this.child?.getCardSize?.() ?? 1); }
@@ -268,8 +282,8 @@ window.customCards = window.customCards || [];
 if (!window.customCards.some((card) => card.type === 'acm-group-card')) {
     window.customCards.push({
         type: 'acm-group-card',
-        name: 'ACM Group Card',
-        description: 'Show a child card to selected ACM groups. Visibility only, not data security.',
+        get name() { return translate(browserLanguage(), 'card_name'); },
+        get description() { return translate(browserLanguage(), 'card_description'); },
         preview: false,
         documentationURL: 'https://github.com/Darkdragon14/ha-access-control-manager#group-visibility-card',
     });

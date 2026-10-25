@@ -18,6 +18,7 @@ globalThis.customElements = {
     define: (name, value) => registry.set(name, value),
 };
 globalThis.document = Object.assign(new EventTarget(), {
+    documentElement: { lang: 'en' },
     visibilityState: 'visible',
     createElement: (name) => registry.has(name) ? new (registry.get(name))() : new Element(),
 });
@@ -25,6 +26,7 @@ globalThis.window = { customCards: [] };
 const { GroupMembership, membershipFor, validateConfig, AcmGroupCard } = await import(
     '../custom_components/ha_access_control_manager/www/acm-group-card.js'
 );
+const { translate } = await import('../custom_components/ha_access_control_manager/www/acm-group-card-i18n.js');
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const deferred = () => {
     let resolve;
@@ -280,4 +282,55 @@ test('native shell preserves child conditions and its visibility without a grid 
         card.disconnectedCallback();
         registry.delete('hui-card');
     }
+});
+
+test('configuration errors and child-load failures are localized with safe technical detail', async () => {
+    assert.throws(() => validateConfig({}, 'fr'), { message: translate('fr', 'invalid_groups') });
+    assert.throws(() => validateConfig({ groups: ['club'] }, 'de'), { message: translate('de', 'invalid_card') });
+    let loads = 0;
+    window.loadCardHelpers = async () => { loads++; throw new Error('<technical error $&>'); };
+    const card = new AcmGroupCard();
+    card.setConfig(config);
+    card.isConnected = true;
+    card.hass = { language: 'fr', connection: connection(async () => ({ groups: [{ id: 'club' }] })), user: { id: 'u' } };
+    try {
+        await tick();
+        assert.equal(card.content.children[0].textContent, translate('fr', 'child_error', { error: '<technical error $&>' }));
+        card.hass = { ...card.hass, language: 'hu' };
+        assert.equal(card.content.children[0].textContent, translate('hu', 'child_error', { error: '<technical error $&>' }));
+        assert.equal(loads, 1);
+        assert.equal(card.child, null);
+        window.loadCardHelpers = async () => ({ createCardElement: () => new Element() });
+        membershipFor(card.connection, 'u').publish(['club']);
+        await tick();
+        assert(card.child);
+        card.hass = { ...card.hass, language: 'de' };
+        assert.equal(card.content.children[0], card.child, 'a recovered error cannot replace the child on language change');
+    } finally { card.isConnected = false; card.disconnectedCallback(); }
+});
+
+test('changing language forwards hass but does not recreate an authorized child', async () => {
+    let created = 0;
+    window.loadCardHelpers = async () => ({ createCardElement: () => { created++; return new Element(); } });
+    const card = new AcmGroupCard();
+    card.setConfig(config);
+    card.isConnected = true;
+    card.hass = { language: 'en', connection: connection(async () => ({ groups: [{ id: 'club' }] })), user: { id: 'u' } };
+    try {
+        await tick();
+        const child = card.child;
+        card.hass = { ...card.hass, language: 'fr' };
+        assert.equal(card.child, child);
+        assert.equal(child.hass.language, 'fr');
+        assert.equal(created, 1);
+    } finally { card.isConnected = false; card.disconnectedCallback(); }
+});
+
+test('card catalog metadata follows the document language before hass is assigned', () => {
+    const entry = window.customCards.find(card => card.type === 'acm-group-card');
+    document.documentElement.lang = 'fr';
+    try {
+        assert.equal(entry.name, translate('fr', 'card_name'));
+        assert.equal(entry.description, translate('fr', 'card_description'));
+    } finally { document.documentElement.lang = 'en'; }
 });

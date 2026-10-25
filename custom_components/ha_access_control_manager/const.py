@@ -2,7 +2,12 @@ DOMAIN = "ha_access_control_manager"
 
 BASE_PATH = "custom_components/ha_access_control_manager"
 SCRIPT_JS = "ha-access-control-manager.js"
-FRONTEND_SCRIPTS = (SCRIPT_JS, "acm-group-card.js", "acm-group-card-editor.js")
+FRONTEND_SCRIPTS = (
+    SCRIPT_JS,
+    "acm-group-card.js",
+    "acm-group-card-editor.js",
+    "acm-group-card-i18n.js",
+)
 SOURCE_PATH_SCRIPT_JS = f"{BASE_PATH}/www/{SCRIPT_JS}"
 DEST_PATH_SCRIPT_JS = "www/community/ha-access-control-manager"
 AUTH_PATH = ".storage/auth"

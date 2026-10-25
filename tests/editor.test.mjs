@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 // Local, deliberately small DOM: editor tests do not require npm packages or
@@ -37,7 +36,7 @@ const definitions = new Map();
 const waiters = new Map();
 globalThis.HTMLElement = FakeElement;
 globalThis.CustomEvent = FakeCustomEvent;
-globalThis.document = { createElement: (tag) => new FakeElement(tag) };
+globalThis.document = { documentElement: { lang: "en" }, createElement: (tag) => new FakeElement(tag) };
 globalThis.customElements = {
   get: (tag) => definitions.get(tag),
   define(tag, ctor) {
@@ -65,9 +64,9 @@ const helper = {
   },
 };
 globalThis.window = { loadCardHelpers: async () => { helperLoads++; return helper; } };
-const source = await readFile(new URL("../custom_components/ha_access_control_manager/www/acm-group-card-editor.js", import.meta.url), "utf8");
-const moduleURL = `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
+const moduleURL = new URL("../custom_components/ha_access_control_manager/www/acm-group-card-editor.js", import.meta.url).href;
 const { AcmGroupCardEditor } = await import(moduleURL);
+const { translate } = await import("../custom_components/ha_access_control_manager/www/acm-group-card-i18n.js");
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const find = (root, predicate) => {
   if (predicate(root)) return root;
@@ -281,4 +280,52 @@ test("bootstrap errors are visible, bounded and explicitly retryable", async () 
     globalThis.clearTimeout = realClearTimeout;
     window.loadCardHelpers = async () => helper;
   }
+});
+
+test("language changes translate own UI without fetching groups, recreating child or editing config", async () => {
+  let requests = 0;
+  const state = { ...hass(async () => {
+    requests++;
+    return { groups: [{ id: "known", name: "User supplied group name" }] };
+  }), language: "fr-CA" };
+  const instance = await editor(config(), state);
+  const child = instance._child;
+  const events = [];
+  instance.addEventListener("config-changed", event => events.push(event));
+  assert.equal(instance._groupsTitle.textContent, translate("fr", "groups_title"));
+  assert.equal(instance._notice.textContent, translate("fr", "notice"));
+  assert.ok(byText(instance._toolbar, translate("fr", "replace_card")));
+  assert.match(instance._groupArea.textContent, /User supplied group name/);
+  assert.ok(instance._groupArea.textContent.includes(translate("fr", "unknown_group")));
+  instance.hass = { ...state, language: "de" };
+  await tick();
+  assert.equal(instance._groupsTitle.textContent, translate("de", "groups_title"));
+  assert.ok(byText(instance._toolbar, translate("de", "yaml_editor")));
+  assert.equal(instance._child, child);
+  assert.equal(child.hass.language, "de");
+  assert.equal(requests, 1);
+  assert.deepEqual(events, []);
+  assert.deepEqual(instance._config, config());
+  instance.hass = { ...state, language: "unsupported" };
+  assert.ok(byText(instance._toolbar, "Replace card"));
+});
+
+test("stored internal failures translate again when the frontend language changes", async () => {
+  const instance = await editor(config(), { ...hass(async () => ({ groups: [null] })), language: "fr" });
+  assert.ok(instance._groupArea.textContent.includes(translate("fr", "invalid_catalog")));
+  instance.hass = { ...instance.hass, language: "es" };
+  assert.ok(instance._groupArea.textContent.includes(translate("es", "invalid_catalog")));
+  assert.ok(byText(instance._groupArea, translate("es", "retry_groups")));
+  const { AcmGroupCardEditor: FreshEditor } = await import(`${moduleURL}#localized-bootstrap`);
+  const original = window.loadCardHelpers;
+  window.loadCardHelpers = undefined;
+  try {
+    const editor = new FreshEditor();
+    editor.hass = { ...hass(), language: "fr" };
+    editor.connectedCallback();
+    await tick();
+    assert.ok(editor._childArea.textContent.includes(translate("fr", "helpers_unavailable")));
+    editor.hass = { ...editor.hass, language: "it" };
+    assert.ok(editor._childArea.textContent.includes(translate("it", "helpers_unavailable")));
+  } finally { window.loadCardHelpers = original; }
 });

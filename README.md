@@ -86,12 +86,13 @@ there is no shared "current user" sensor and no Home Assistant Core override.
 ### Install the resource
 
 1. Update/install ACM and restart Home Assistant. ACM copies the card and its
-   editor to `/config/www/community/ha-access-control-manager/` at startup.
+   editor and translation module to `/config/www/community/ha-access-control-manager/`
+   at startup.
 2. Enable **Advanced mode** in your profile if the resource menu is not visible.
 3. Under **Settings → Dashboards → Resources**, add this JavaScript module:
    `/local/community/ha-access-control-manager/acm-group-card.js?v=1`.
 4. Reload the browser. After an update, change the `v` query parameter (for
-   example, to `v=2`) to refresh both the card and its lazy-loaded editor.
+   example, to `v=2`) to refresh the card, its lazy-loaded editor and translations.
 
 For YAML-managed resources, add it to your `configuration.yaml` instead:
 
@@ -102,8 +103,9 @@ lovelace:
       type: module
 ```
 
-Keep both JavaScript files together in the installed directory. Only the main
-card needs a resource entry; it loads `acm-group-card-editor.js` automatically.
+Keep all three JavaScript files together in the installed directory. Only the main
+card needs a resource entry; it loads `acm-group-card-editor.js` and the shared
+`acm-group-card-i18n.js` translation module automatically.
 Resource registration is manual; ACM does not rewrite dashboard configuration.
 
 ### Configure in Lovelace
@@ -121,6 +123,15 @@ editor does not automatically change your saved configuration.
 
 The group catalog is administrator-only. At runtime, other users can retrieve
 only their own current groups, not other users, memberships, or permission policies.
+
+The card/editor's own labels, warnings and error messages follow the Home Assistant
+frontend language (`hass.language`), including language changes while editing.
+English, French, German, Spanish, Italian and Hungarian are supported; regional
+variants use their base language and unsupported languages fall back to English.
+Custom group names, child-card content and technical details returned by other
+components are not translated. Native child editors retain Home Assistant's own
+translations. The standalone card uses its shared translation module rather than
+depending on the integration's backend translation catalog being loaded.
 
 ### YAML examples
 
@@ -172,8 +183,8 @@ editor to obtain their actual IDs; YAML uses IDs rather than display names.
   preserved with a warning in the editor until you remove them.
 - **Configuration errors:** select at least one group and configure a child card.
   If nobody matches, the card is hidden; incomplete configuration is not permissive.
-- **Missing card/editor:** check the resource URL, module type, both installed files,
-  browser cache, and whether ACM is loaded. The editor provides retry buttons for
+- **Missing card/editor:** check the resource URL, module type, all three installed
+  files, browser cache, and whether ACM is loaded. The editor provides retry buttons for
   group-catalog and native-editor loading failures. Third-party cards must have
   their own resources installed as usual.
 

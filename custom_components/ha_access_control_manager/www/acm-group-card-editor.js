@@ -1,14 +1,21 @@
 // Home Assistant loads its editor elements lazily. Loading a stack editor also
 // registers the native picker and single-card editor, without CDN dependencies.
+const i18nURL = new URL('./acm-group-card-i18n.js', import.meta.url);
+i18nURL.search = new URL(import.meta.url).search;
+const { translate } = await import(i18nURL.href);
 const EDITOR_TIMEOUT = 12000;
 let nativeEditors;
 
-function withTimeout(promise, message) {
+function localizedError(key) {
+  return Object.assign(new Error(key), { translationKey: key });
+}
+
+function withTimeout(promise, key) {
   let timer;
   return Promise.race([
     promise,
     new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error(message)), EDITOR_TIMEOUT);
+      timer = setTimeout(() => reject(localizedError(key)), EDITOR_TIMEOUT);
     }),
   ]).finally(() => clearTimeout(timer));
 }
@@ -17,7 +24,7 @@ function loadNativeEditors() {
   if (!nativeEditors) {
     nativeEditors = withTimeout((async () => {
       if (typeof window.loadCardHelpers !== "function") {
-        throw new Error("Home Assistant card helpers are not available yet.");
+        throw localizedError("helpers_unavailable");
       }
       const helpers = await window.loadCardHelpers();
       await helpers.createCardElement({ type: "vertical-stack", cards: [] });
@@ -28,7 +35,7 @@ function loadNativeEditors() {
         customElements.whenDefined("hui-card-picker"),
         customElements.whenDefined("hui-card-element-editor"),
       ]);
-    })(), "Home Assistant's card editor took too long to load.").catch((error) => {
+    })(), "native_timeout").catch((error) => {
       nativeEditors = undefined;
       throw error;
     });
@@ -95,10 +102,11 @@ export class AcmGroupCardEditor extends HTMLElement {
     this._groupArea = element("section");
     this._toolbar = element("div", undefined, "toolbar");
     this._childArea = element("div", undefined, "child");
-    this.shadowRoot.append(style,
-      element("p", "This controls dashboard visibility, not security or access permissions. The preview only shows the card when the signed-in user matches a selected group.", "notice"),
-      element("h3", "Visible to groups"), this._groupArea,
-      element("h3", "Wrapped card"), this._toolbar, this._childArea);
+    this._notice = element("p", undefined, "notice");
+    this._groupsTitle = element("h3");
+    this._childTitle = element("h3");
+    this.shadowRoot.append(style, this._notice, this._groupsTitle, this._groupArea,
+      this._childTitle, this._toolbar, this._childArea);
   }
 
   connectedCallback() {
@@ -115,6 +123,7 @@ export class AcmGroupCardEditor extends HTMLElement {
   }
 
   set hass(hass) {
+    const languageChanged = hass?.language !== this._hass?.language;
     const scope = [hass?.connection, hass?.user?.id, hass?.user?.is_admin,
       hass?.connection?.connected];
     const changed = !this._scope || scope.some((value, i) => value !== this._scope[i]);
@@ -126,7 +135,7 @@ export class AcmGroupCardEditor extends HTMLElement {
     }
     this._hass = hass;
     this._loadGroups();
-    if (changed) this._render();
+    if (changed || languageChanged) this._render();
     else if (this._child) this._child.hass = hass;
   }
 
@@ -137,6 +146,16 @@ export class AcmGroupCardEditor extends HTMLElement {
   }
   get lovelace() { return this._lovelace; }
 
+  _t(key, values) {
+    return translate(this._hass?.language || document.documentElement?.lang ||
+      globalThis.navigator?.language || "en", key, values);
+  }
+
+  _errorText(error, fallback) {
+    return error?.translationKey ? this._t(error.translationKey)
+      : error?.message || this._t(fallback);
+  }
+
   async _loadEditors() {
     if (this._nativeState === "loading" || this._nativeState === "ready") return;
     this._nativeState = "loading";
@@ -146,7 +165,7 @@ export class AcmGroupCardEditor extends HTMLElement {
       this._nativeState = "ready";
     } catch (error) {
       this._nativeState = "error";
-      this._nativeError = error.message;
+      this._nativeError = error;
     }
     this._renderChild();
   }
@@ -159,18 +178,18 @@ export class AcmGroupCardEditor extends HTMLElement {
     try {
       const result = await withTimeout(
         this._hass.callWS({ type: "ha_access_control/list_groups" }),
-        "Loading groups took too long.");
+        "catalog_timeout");
       if (request !== this._request) return;
       if (!Array.isArray(result?.groups) || result.groups.some((group) =>
         typeof group?.id !== "string" || typeof group?.name !== "string")) {
-        throw new Error("The group catalog response is invalid.");
+        throw localizedError("invalid_catalog");
       }
       this._groups = result.groups;
       this._catalogState = "ready";
     } catch (error) {
       if (request !== this._request) return;
       this._catalogState = "error";
-      this._catalogError = error.message || "Group catalog unavailable.";
+      this._catalogError = error;
     }
     this._renderGroups();
   }
@@ -184,6 +203,9 @@ export class AcmGroupCardEditor extends HTMLElement {
   }
 
   _render() {
+    this._notice.textContent = this._t("notice");
+    this._groupsTitle.textContent = this._t("groups_title");
+    this._childTitle.textContent = this._t("child_title");
     this._renderGroups();
     this._renderChild();
   }
@@ -194,13 +216,13 @@ export class AcmGroupCardEditor extends HTMLElement {
     const selected = Array.isArray(this._config.groups) ? this._config.groups : [];
     if (this._catalogState !== "ready") {
       area.append(element("p", this._catalogState === "error"
-        ? `Cannot load groups. ${this._catalogError} Administrator access may be required.`
-        : "Loading group catalog…", "status"));
+        ? this._t("catalog_error", { error: this._errorText(this._catalogError, "catalog_unavailable") })
+        : this._t("catalog_loading"), "status"));
     } else if (!this._groups.length) {
-      area.append(element("p", "No groups are available.", "status"));
+      area.append(element("p", this._t("no_groups"), "status"));
     }
     if (this._catalogState === "error") {
-      area.append(button("Retry loading groups", () => {
+      area.append(button(this._t("retry_groups"), () => {
         this._catalogState = "idle";
         this._loadGroups();
         this._renderGroups();
@@ -214,10 +236,10 @@ export class AcmGroupCardEditor extends HTMLElement {
       const input = element("input");
       input.type = "checkbox";
       input.checked = selected.includes(group.id);
-      const description = element("span", group.unknown ? "Unknown / unavailable group" : group.name);
+      const description = element("span", group.unknown ? this._t("unknown_group") : group.name);
       description.append(element("small", String(group.id)));
       if (group.unknown) description.append(element("small",
-        "Selected ID is preserved. Uncheck to remove it.", "warning"));
+        this._t("unknown_hint"), "warning"));
       input.addEventListener("change", () => {
         const current = Array.isArray(this._config.groups) ? this._config.groups : [];
         const groups = input.checked
@@ -229,7 +251,7 @@ export class AcmGroupCardEditor extends HTMLElement {
       list.append(label);
     }
     area.append(list);
-    if (!selected.length) area.append(element("p", "Select at least one group; otherwise this card is hidden.", "warning"));
+    if (!selected.length) area.append(element("p", this._t("select_group"), "warning"));
   }
 
   _renderChild() {
@@ -237,10 +259,10 @@ export class AcmGroupCardEditor extends HTMLElement {
     if (this._nativeState !== "ready") {
       this._child = undefined;
       this._childArea.replaceChildren(element("p", this._nativeState === "error"
-        ? `Cannot load the native card editor. ${this._nativeError}`
-        : "Loading Home Assistant card editor…", "status"));
+        ? this._t("native_error", { error: this._errorText(this._nativeError, "native_loading") })
+        : this._t("native_loading"), "status"));
       if (this._nativeState === "error") {
-        this._toolbar.append(button("Retry loading card editor", () => this._loadEditors()));
+        this._toolbar.append(button(this._t("retry_editor"), () => this._loadEditors()));
       }
       return;
     }
@@ -249,10 +271,10 @@ export class AcmGroupCardEditor extends HTMLElement {
       this._config.card.type.trim().length > 0;
     const picking = this._picking || !hasCard;
     if (hasCard) {
-      this._toolbar.append(button(picking ? "Cancel replacement" : "Replace card", () => {
+      this._toolbar.append(button(this._t(picking ? "cancel_replace" : "replace_card"), () => {
         this._picking = !picking;
         this._renderChild();
-      }), button("Remove card", () => {
+      }), button(this._t("remove_card"), () => {
         const config = { ...this._config };
         delete config.card;
         this._picking = false;
@@ -296,7 +318,7 @@ export class AcmGroupCardEditor extends HTMLElement {
     this._child.lovelace = this._lovelace;
     if (!picking) {
       this._child.value = this._config.card;
-      const toggle = button(this._guiMode ? "Show YAML editor" : "Show visual editor", () => {
+      const toggle = button(this._t(this._guiMode ? "yaml_editor" : "visual_editor"), () => {
         this._child.toggleMode();
       });
       // A card without a GUI must still be allowed to enter YAML mode.
