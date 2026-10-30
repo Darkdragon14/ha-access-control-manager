@@ -15,14 +15,14 @@ from .get_helpers import list_helpers
 from .get_labels import list_labels
 from .get_users import list_users
 from .get_auths import list_auths
+from .get_groups import current_user_groups, list_groups
 from .set_auths import async_sync_group_dashboards_to_users, create_group, delete_group, migrate_legacy_auth_data, rename_group, set_auths
 from .get_dashboards import list_dashboards
 
 from .const import (
     DOMAIN,
     DEST_PATH_SCRIPT_JS,
-    SOURCE_PATH_SCRIPT_JS,
-    SCRIPT_JS,
+    FRONTEND_SCRIPTS,
 )
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
@@ -54,6 +54,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket_api.async_register_command(hass, list_helpers)
     websocket_api.async_register_command(hass, list_labels)
     websocket_api.async_register_command(hass, list_auths)
+    websocket_api.async_register_command(hass, current_user_groups)
+    websocket_api.async_register_command(hass, list_groups)
     websocket_api.async_register_command(hass, create_group)
     websocket_api.async_register_command(hass, rename_group)
     websocket_api.async_register_command(hass, delete_group)
@@ -61,16 +63,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket_api.async_register_command(hass, list_dashboards)
     await migrate_legacy_auth_data(hass)
     
-    source_path = hass.config.path(SOURCE_PATH_SCRIPT_JS)
     dest_dir = hass.config.path(DEST_PATH_SCRIPT_JS)
-    dest_path = os.path.join(dest_dir, SCRIPT_JS)
 
     try:
         if not os.path.exists(dest_dir):
             os.makedirs(dest_dir)
 
-        if os.path.exists(source_path):
-            await async_copy_file(source_path, dest_path)
+        for script in FRONTEND_SCRIPTS:
+            source_path = Path(__file__).parent / "www" / script
+            if source_path.is_file():
+                await async_copy_file(source_path, os.path.join(dest_dir, script))
 
     except Exception as e:
         return False
