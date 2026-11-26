@@ -70,6 +70,8 @@ async def async_update_dashboard_visibility(hass: HomeAssistant) -> None:
 
 This coroutine must be awaited from Home Assistant's event loop. It does not take a user or group argument; it syncs dashboard visibility for users based on the saved ACM group dashboard permissions.
 
+ACM saves the view visibility through Home Assistant's dashboard storage, the same way the dashboard editor saves. The change is active immediately, and open dashboards reload.
+
 ## Group visibility card
 
 The optional **ACM Group Card** wraps one Lovelace card and shows it when the
